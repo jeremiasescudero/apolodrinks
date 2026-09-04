@@ -194,7 +194,7 @@ export default function VentasPage() {
       {/* Table */}
       <div className="card">
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>N°</th>
@@ -215,13 +215,13 @@ export default function VentasPage() {
               ) : (
                 ventas.map((v) => (
                   <tr key={v.id}>
-                    <td className="td-b">{v.numero}</td>
-                    <td className="td-m">{formatFecha(v.createdAt)}</td>
-                    <td className="td-m">{formatHora(v.createdAt)}</td>
-                    <td className="td-m">{v.cliente?.nombre || "—"}</td>
-                    <td className="td-m">{v.items.length} prod.</td>
-                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
-                    <td className="td-n">{formatPrecio(v.total)}</td>
+                    <td className="celda-titulo td-b">{v.numero}</td>
+                    <td className="td-m" data-label="Fecha">{formatFecha(v.createdAt)}</td>
+                    <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
+                    <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
+                    <td className="td-m" data-label="Items">{v.items.length} prod.</td>
+                    <td data-label="Método"><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td className="td-n" data-label="Total">{formatPrecio(v.total)}</td>
                     <td className="td-act">
                       <button className="act-btn" onClick={() => setDetailVenta(v)} title="Ver detalle">
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 5v3h3" /></svg>

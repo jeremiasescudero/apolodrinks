@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { searchParams } = new URL(req.url);
   const estado = searchParams.get("estado");
   const search = searchParams.get("search");
@@ -12,8 +16,8 @@ export async function GET(req: NextRequest) {
   }
   if (search) {
     where.OR = [
-      { numero: { contains: search } },
-      { proveedor: { nombre: { contains: search } } },
+      { numero: { contains: search, mode: "insensitive" } },
+      { proveedor: { nombre: { contains: search, mode: "insensitive" } } },
     ];
   }
 
@@ -30,6 +34,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const body = await req.json();
 
   const lastPedido = await prisma.pedido.findFirst({ orderBy: { id: "desc" } });

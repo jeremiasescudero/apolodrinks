@@ -206,7 +206,7 @@ export default function PedidosPage() {
       {/* Table */}
       <div className="card">
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>N°</th>
@@ -229,12 +229,12 @@ export default function PedidosPage() {
                   const nextEstados = ESTADO_FLOW[p.estado] ?? [];
                   return (
                     <tr key={p.id}>
-                      <td className="td-b">{p.numero}</td>
-                      <td className="td-m">{formatFecha(p.createdAt)}</td>
-                      <td className="td-m">{p.proveedor.nombre}</td>
-                      <td className="td-m">{p.items.length} prod.</td>
-                      <td className="td-n">{formatPrecio(p.total)}</td>
-                      <td><Badge variant={ei.color as "success" | "warning" | "info" | "muted"}>{ei.label}</Badge></td>
+                      <td className="celda-titulo td-b">{p.numero}</td>
+                      <td className="td-m" data-label="Fecha">{formatFecha(p.createdAt)}</td>
+                      <td className="td-m" data-label="Proveedor">{p.proveedor.nombre}</td>
+                      <td className="td-m" data-label="Items">{p.items.length} prod.</td>
+                      <td className="td-n" data-label="Total">{formatPrecio(p.total)}</td>
+                      <td data-label="Estado"><Badge variant={ei.color as "success" | "warning" | "info" | "muted"}>{ei.label}</Badge></td>
                       <td className="td-act" style={{ width: 100 }}>
                         {nextEstados.length > 0 && (
                           <button

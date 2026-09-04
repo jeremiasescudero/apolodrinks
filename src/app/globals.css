@@ -156,29 +156,6 @@ input, select, textarea { font-family: inherit }
   font-weight: 600;
   flex-shrink: 0;
 }
-.hdr-search {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 6px 12px;
-  max-width: 260px;
-  width: 100%;
-}
-.hdr-search svg { width: 15px; height: 15px; color: var(--color-text-3); flex-shrink: 0 }
-.hdr-search input {
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--color-text);
-  outline: none;
-  width: 100%;
-}
-.hdr-search input::placeholder { color: var(--color-text-3) }
 .main-content { padding: 20px 28px; flex: 1 }
 
 /* ===== KPI CARDS ===== */
@@ -543,20 +520,371 @@ tr:hover td { background: var(--color-primary-light) }
   font-size: 13px;
 }
 
+
+/* ===== LOGIN ===== */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--color-bg);
+}
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+.login-marca { text-align: center; margin-bottom: 4px }
+.login-marca h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700 }
+.login-marca p {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+}
+.login-error {
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 500;
+}
+.login-btn { justify-content: center; min-height: 44px; margin-top: 4px }
+.login-btn:disabled { opacity: .6; cursor: default }
+
+/* Salir: en el pie del sidebar y como última opción del cajón */
+.btn-salir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-sidebar-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.btn-salir:hover { background: rgba(255,255,255,0.08); color: #fff }
+.btn-salir svg { width: 15px; height: 15px }
+
+/* ===== NAVEGACIÓN MÓVIL (no se muestra en escritorio) ===== */
+.tabbar, .drawer-overlay { display: none }
+
 /* ===== RESPONSIVE ===== */
 @media(max-width: 1100px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr) }
   .grid-2 { grid-template-columns: 1fr }
 }
+
 @media(max-width: 768px) {
-  .sidebar { width: 54px }
-  .sidebar-brand h1 { font-size: 0 }
-  .sidebar-brand p, .nav-item span, .sidebar-footer { display: none }
-  .nav-item { justify-content: center; padding: 10px }
-  .nav-item svg { opacity: 1 }
-  .main { margin-left: 54px }
-  .main-content { padding: 14px }
-  .main-header { padding: 10px 14px }
-  .kpi-grid { grid-template-columns: 1fr }
+  /* --- Estructura --- */
+  .sidebar { display: none }
+  /* min-width:0 evita que una tabla ancha infle el flex item y desborde la pantalla */
+  .main { margin-left: 0; min-width: 0 }
+  .main-content { padding: 12px 12px calc(72px + env(safe-area-inset-bottom)); min-width: 0 }
+  .card, .tbl-wrap { max-width: 100% }
+  .main-header { padding: 12px 14px }
+  .main-header h2 { font-size: 17px }
+
+  /* --- Barra inferior: lo que se usa todos los días --- */
+  .tabbar {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 100;
+    background: var(--color-sidebar);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 12px rgba(30,30,32,0.18);
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 56px;
+    padding: 7px 2px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--color-sidebar-text);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .tab-item svg { width: 20px; height: 20px; opacity: .75 }
+  .tab-item.active { color: #fff; font-weight: 600 }
+  .tab-item.active svg { opacity: 1 }
+
+  /* --- Cajón con las ocho secciones --- */
+  .drawer-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 210;
+  }
+  .drawer {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: var(--color-sidebar);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    animation: drawerUp .22s ease;
+  }
+  @keyframes drawerUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .drawer-head strong { display: block; color: #fff; font-family: var(--font-display); font-size: 16px }
+  .drawer-head span { font-size: 10px; color: var(--color-sidebar-text); text-transform: uppercase; letter-spacing: .4px }
+  .drawer-head .modal-close { color: var(--color-sidebar-text); font-size: 26px }
+  .drawer-head .modal-close:hover { background: rgba(255,255,255,0.08) }
+  .drawer-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 12px }
+  .drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 12px;
+    border-radius: var(--radius);
+    color: var(--color-sidebar-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .drawer-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .75 }
+  .drawer-item.active { background: var(--color-sidebar-active); color: #fff; font-weight: 600 }
+  .drawer-item.active svg { opacity: 1 }
+  .drawer-nav .btn-salir { grid-column: 1 / -1; margin: 4px 0 0; min-height: 48px; font-size: 14px }
+
+  /* --- 16px en los campos: por debajo de eso iOS hace zoom al enfocar --- */
+  input, select, textarea { font-size: 16px !important }
+
+  /* --- Blancos táctiles de 40px para arriba --- */
+  .btn { min-height: 44px; padding: 10px 16px; font-size: 14px }
+  .act-btn { min-width: 40px; min-height: 40px; align-items: center; justify-content: center }
+  .act-btn svg { width: 18px; height: 18px }
+  .fchip { min-height: 38px; padding: 8px 14px; font-size: 13px }
+  .modal-close { min-width: 40px; min-height: 40px }
+
+  /* --- Barras de herramientas apiladas --- */
+  .sec-bar { flex-direction: column; align-items: stretch; gap: 10px }
+  .sec-bar > div { width: 100% }
+  .sec-bar .btn { flex: 1; justify-content: center }
+  .srch { width: 100% }
+  .inp-date { width: 100% }
+  .filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none }
+
+  /* --- KPIs en 2x2 --- */
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px }
+  /* Grids con columnas fijas por estilo inline: solo un !important las puede bajar a 2 */
+  .grid-mobile-2 { grid-template-columns: 1fr 1fr !important; gap: 10px !important }
+  .kpi-card { padding: 12px 13px }
+  .kpi-label { font-size: 10px }
+  .kpi-value { font-size: 20px }
+  .kpi-sub { font-size: 10px }
+
+  /* --- Modales como hoja que sube desde abajo --- */
+  .modal-overlay { padding: 0; align-items: flex-end }
+  .modal, .modal.wide { max-width: 100%; max-height: 92vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0 }
+  .modal-body { padding: 16px }
+  .modal-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) }
+  .modal-foot .btn { flex: 1; justify-content: center }
+  .form-row { flex-direction: column; gap: 14px; align-items: stretch }
+  .form-group { min-width: 0 }
+  .form-group[style] { max-width: none !important }
+  /* Las tablas que siguen siendo tablas (carrito, ítems) tienen que entrar en 375px */
+  .modal table:not(.tbl-cards) { font-size: 12px }
+  .modal table:not(.tbl-cards) th,
+  .modal table:not(.tbl-cards) td { padding: 8px 5px }
+  .modal table:not(.tbl-cards) th { font-size: 9px }
+
+  /* --- Tarjetas --- */
+  .card { border-radius: var(--radius) }
+  .card-header { padding: 12px 14px }
+
+  /* --- Tablas que se vuelven tarjetas: cada fila es una ficha legible --- */
+  .tbl-cards { display: block }
+  .tbl-cards thead { display: none }
+  .tbl-cards tbody, .tbl-cards tfoot { display: block }
+  .tbl-cards tr {
+    display: block;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    background: var(--color-surface);
+  }
+  .tbl-cards tr:last-child { margin-bottom: 0 }
+  .tbl-cards tr:hover td { background: none }
+  .tbl-cards td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    width: auto !important;
+    max-width: none !important;
+    padding: 3px 0;
+    border: none;
+    text-align: right;
+  }
+  .tbl-cards td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--color-text-3);
+    text-align: left;
+  }
+  /* El primer dato es el título de la ficha */
+  .tbl-cards td.celda-titulo {
+    display: block;
+    text-align: left;
+    font-size: 15px;
+    padding: 0 0 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .tbl-cards td.celda-titulo::before { display: none }
+  /* Los botones de acción, en una fila propia al pie */
+  .tbl-cards td.td-act {
+    justify-content: flex-end;
+    gap: 2px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+  .tbl-cards td.td-act::before { display: none }
+  /* Celdas sin dato o decorativas no ocupan lugar */
+  .tbl-cards td:empty { display: none }
+  .tbl-cards td.celda-oculta { display: none }
+  .tbl-cards td.empty-msg {
+    display: block;
+    text-align: center;
+    padding: 20px 0;
+  }
+  .tbl-cards td.empty-msg::before { display: none }
+  .tbl-cards tfoot tr { background: var(--color-surface-2); font-size: 14px }
+  .tbl-cards tfoot td { justify-content: space-between }
+  /* Ya no hace falta el scroll lateral */
+  .tbl-wrap:has(.tbl-cards) { overflow-x: visible }
+  .card:has(.tbl-cards) { border: none; background: none; box-shadow: none }
+  .card:has(.tbl-cards) > .card-header { padding: 0 2px 10px; border-bottom: none }
 }
+
 @media(prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* ===== HOJA DE RUTA ===== */
+.inp-date {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+}
+.inp-date:focus { border-color: var(--color-primary) }
+.inp-area {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+}
+.inp-area:focus { border-color: var(--color-primary) }
+.link-sutil {
+  font-size: 12px;
+  color: var(--color-text-2);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--color-border-2);
+}
+.link-sutil:hover { color: var(--color-primary); border-bottom-color: var(--color-primary) }
+.celda-pedido { max-width: 240px; white-space: pre-wrap }
+.celda-nota { font-size: 11px; color: var(--color-text-3); margin-top: 2px }
+.row-anulada td { opacity: .5; text-decoration: line-through }
+.row-anulada td .badge { text-decoration: none }
+.sugerencias {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -6px 0 16px;
+}
+.sug-label { font-size: 12px; color: var(--color-text-3) }
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+tfoot td {
+  border-top: 1px solid var(--color-border-2);
+  background: var(--color-surface-2);
+}
+tfoot tr:hover td { background: var(--color-surface-2) }
+.act-btn:disabled { opacity: .25; cursor: default }
+.act-btn:disabled:hover { color: var(--color-text-3); background: none }
+
+/* ===== IMPRESIÓN (hoja de ruta para el repartidor) ===== */
+@media print {
+  .sidebar, .tabbar, .drawer-overlay, .main-header, .no-print { display: none !important }
+  body { background: #fff; display: block }
+  .main { margin-left: 0 }
+  .main-content { padding: 0 }
+  .card {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+  }
+  .card-header { padding: 0 0 10px; border-bottom: 1px solid #000 }
+  .card-header h3 { font-size: 18px }
+  table { font-size: 12px }
+  th { color: #000; border-bottom: 1px solid #000 }
+  td { border-bottom: 1px solid #ccc }
+  tr:hover td { background: none }
+  .celda-pedido { max-width: none }
+  .badge { border: 1px solid #999; background: none !important; color: #000 !important }
+  .badge::before { display: none }
+  a { color: #000; text-decoration: none; border: none }
+  @page { margin: 14mm }
+}

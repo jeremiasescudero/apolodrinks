@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { categoria, porcentaje, redondeo } = await req.json();
 
   const productos = await prisma.producto.findMany({

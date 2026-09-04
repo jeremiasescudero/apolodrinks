@@ -1,13 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search");
 
   const where: Record<string, unknown> = { activo: true };
   if (search) {
-    where.nombre = { contains: search };
+    where.nombre = { contains: search, mode: "insensitive" };
   }
 
   const proveedores = await prisma.proveedor.findMany({
@@ -19,6 +23,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const body = await req.json();
 
   const proveedor = await prisma.proveedor.create({

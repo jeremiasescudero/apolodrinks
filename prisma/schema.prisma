@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  // Conexion agrupada, la que usan las funciones serverless.
+  url       = env("DATABASE_URL")
+  // Conexion directa: las migraciones no pueden ir por el pooler.
+  directUrl = env("DIRECT_URL")
 }
 
 model Producto {
@@ -46,7 +49,8 @@ model Cliente {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ventas  Venta[]
+  ventas   Venta[]
+  encargos Encargo[]
 }
 
 model Proveedor {
@@ -130,4 +134,26 @@ model CajaMovimiento {
   monto      Int
   tipo       String
   createdAt  DateTime @default(now())
+}
+
+model Encargo {
+  id          Int       @id @default(autoincrement())
+  fecha       DateTime
+  orden       Int       @default(0)
+  nombre      String
+  telefono    String    @default("")
+  direccion   String
+  detalle     String
+  monto       Int       @default(0)
+  metodoPago  String    @default("Efectivo")
+  notas       String    @default("")
+  estado      String    @default("PENDIENTE")
+  entregadoAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  clienteId Int?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  @@index([fecha, orden])
 }

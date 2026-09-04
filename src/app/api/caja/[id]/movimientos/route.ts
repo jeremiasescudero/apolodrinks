@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const body = await req.json();
 

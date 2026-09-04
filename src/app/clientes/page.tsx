@@ -112,7 +112,7 @@ export default function ClientesPage() {
       {/* Table */}
       <div className="card">
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -132,12 +132,12 @@ export default function ClientesPage() {
               ) : (
                 clientes.map((c) => (
                   <tr key={c.id}>
-                    <td className="td-b">{c.nombre}</td>
-                    <td><Badge variant={c.tipo === "Comercio" ? "info" : "muted"}>{c.tipo}</Badge></td>
-                    <td className="td-m">{c.telefono || "—"}</td>
-                    <td className="td-m">{c.email || "—"}</td>
-                    <td className="td-m">{c.direccion || "—"}</td>
-                    <td><Badge variant={saldoVariant(c.saldo)}>{saldoLabel(c.saldo)}</Badge></td>
+                    <td className="celda-titulo td-b">{c.nombre}</td>
+                    <td data-label="Tipo"><Badge variant={c.tipo === "Comercio" ? "info" : "muted"}>{c.tipo}</Badge></td>
+                    <td className="td-m" data-label="Teléfono">{c.telefono || "—"}</td>
+                    <td className="td-m" data-label="Email">{c.email || "—"}</td>
+                    <td className="td-m" data-label="Dirección">{c.direccion || "—"}</td>
+                    <td data-label="Saldo"><Badge variant={saldoVariant(c.saldo)}>{saldoLabel(c.saldo)}</Badge></td>
                     <td className="td-act">
                       <button className="act-btn" onClick={() => handleEdit(c)} title="Editar">
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" /></svg>

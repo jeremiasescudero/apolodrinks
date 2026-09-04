@@ -211,7 +211,7 @@ export default function CajaPage() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+      <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
         <div className="kpi-card">
           <span className="kpi-label">Apertura (efectivo)</span>
           <span className="kpi-value">{formatPrecio(apertura)}</span>
@@ -236,7 +236,7 @@ export default function CajaPage() {
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-1)", marginBottom: 10 }}>
             Recaudación por método de pago
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(porMetodo).length, 4)}, 1fr)`, gap: 16 }}>
+          <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(porMetodo).length, 4)}, 1fr)`, gap: 16 }}>
             {Object.entries(porMetodo).map(([metodo, total]) => (
               <div key={metodo} style={{ textAlign: "center", padding: "12px 0" }}>
                 <div style={{ marginBottom: 4 }}>
@@ -258,7 +258,7 @@ export default function CajaPage() {
           Ventas del día
         </div>
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>N°</th>
@@ -275,12 +275,12 @@ export default function CajaPage() {
               ) : (
                 ventas.map((v) => (
                   <tr key={v.id}>
-                    <td className="td-b">{v.numero}</td>
-                    <td className="td-m">{formatHora(v.createdAt)}</td>
-                    <td className="td-m">{v.cliente?.nombre || "—"}</td>
-                    <td className="td-m">{v.items.length} prod.</td>
-                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
-                    <td className="td-n">{formatPrecio(v.total)}</td>
+                    <td className="celda-titulo td-b">{v.numero}</td>
+                    <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
+                    <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
+                    <td className="td-m" data-label="Items">{v.items.length} prod.</td>
+                    <td data-label="Método"><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td className="td-n" data-label="Total">{formatPrecio(v.total)}</td>
                   </tr>
                 ))
               )}
@@ -299,7 +299,7 @@ export default function CajaPage() {
         <div style={{ fontSize: 13, color: "var(--color-text-2)", marginBottom: 16 }}>
           Resumen del día antes de cerrar:
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
+        <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Apertura</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{formatPrecio(apertura)}</div>
@@ -341,7 +341,7 @@ export default function CajaPage() {
         footer={<button className="btn btn-o" onClick={() => setShowHistorial(false)}>Cerrar</button>}
       >
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -358,11 +358,11 @@ export default function CajaPage() {
               ) : (
                 historial.map((c) => (
                   <tr key={c.id}>
-                    <td className="td-b">{formatFecha(c.fecha)}</td>
-                    <td><Badge variant={c.estado === "ABIERTA" ? "success" : "muted"}>{c.estado === "ABIERTA" ? "Abierta" : "Cerrada"}</Badge></td>
-                    <td className="td-n">{formatPrecio(c.montoInicial)}</td>
-                    <td className="td-m">—</td>
-                    <td className="td-n">—</td>
+                    <td className="celda-titulo td-b">{formatFecha(c.fecha)}</td>
+                    <td data-label="Estado"><Badge variant={c.estado === "ABIERTA" ? "success" : "muted"}>{c.estado === "ABIERTA" ? "Abierta" : "Cerrada"}</Badge></td>
+                    <td className="td-n" data-label="Apertura">{formatPrecio(c.montoInicial)}</td>
+                    <td className="td-m" data-label="Ventas">—</td>
+                    <td className="td-n" data-label="Total vendido">—</td>
                     <td className="td-act">
                       <button className="act-btn" onClick={() => openDetail(c)} title="Ver detalle">
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 5v3h3" /></svg>
@@ -386,7 +386,7 @@ export default function CajaPage() {
       <Modal open={detailCaja !== null} onClose={() => setDetailCaja(null)} title={`Caja ${formatFecha(detailCaja.fecha)}`} wide
         footer={<button className="btn btn-o" onClick={() => setDetailCaja(null)}>Cerrar</button>}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+        <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Apertura</div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>{formatPrecio(detailCaja.montoInicial)}</div>
@@ -406,7 +406,7 @@ export default function CajaPage() {
         </div>
 
         {Object.keys(t.porMetodo).length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(t.porMetodo).length, 4)}, 1fr)`, gap: 16, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
+          <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(t.porMetodo).length, 4)}, 1fr)`, gap: 16, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
             {Object.entries(t.porMetodo).map(([metodo, total]) => (
               <div key={metodo} style={{ textAlign: "center" }}>
                 <Badge variant={METODO_VARIANT[metodo] ?? "muted"}>{metodo}</Badge>

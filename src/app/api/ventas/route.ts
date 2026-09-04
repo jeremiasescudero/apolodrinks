@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { searchParams } = new URL(req.url);
   const metodo = searchParams.get("metodo");
   const search = searchParams.get("search");
@@ -15,7 +19,7 @@ export async function GET(req: NextRequest) {
     where.metodoPago = metodo;
   }
   if (search) {
-    where.numero = { contains: search };
+    where.numero = { contains: search, mode: "insensitive" };
   }
   if (fecha) {
     const [y, m, d] = fecha.split("-").map(Number);
@@ -42,6 +46,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const body = await req.json();
 
   const lastVenta = await prisma.venta.findFirst({ orderBy: { id: "desc" } });

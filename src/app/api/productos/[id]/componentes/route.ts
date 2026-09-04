@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const componentes = await prisma.promoComponente.findMany({
     where: { promoId: Number(id) },
@@ -11,6 +15,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const body: { productoId: number; cantidad: number }[] = await req.json();
 
