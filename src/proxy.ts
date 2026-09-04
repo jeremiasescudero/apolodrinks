@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { COOKIE_SESION, verificarSesion } from "@/lib/auth";
+import { COOKIE_SESION, verificarSesion } from "@/lib/sesion";
 
 // Lo único que se sirve sin sesión: la pantalla de login y el endpoint que la atiende.
 const RUTAS_PUBLICAS = new Set(["/login", "/api/auth/login"]);
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const conSesion = verificarSesion(req.cookies.get(COOKIE_SESION)?.value, process.env.AUTH_SECRET);
+  const conSesion = await verificarSesion(req.cookies.get(COOKIE_SESION)?.value, process.env.AUTH_SECRET);
 
   if (RUTAS_PUBLICAS.has(pathname)) {
     // Ya adentro, el login no tiene sentido.
