@@ -255,7 +255,7 @@ export default function EntregasPage() {
           <span className="td-m" style={{ fontSize: 12, textTransform: "capitalize" }}>{formatFechaLarga(fecha)}</span>
         </div>
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th style={{ width: 36 }}>#</th>
@@ -279,8 +279,8 @@ export default function EntregasPage() {
                   const estado = ESTADOS_ENCARGO[e.estado as keyof typeof ESTADOS_ENCARGO];
                   return (
                     <tr key={e.id} className={e.estado === "CANCELADO" ? "row-anulada" : ""}>
-                      <td className="td-m">{i + 1}</td>
-                      <td>
+                      <td className="td-m" data-label="Parada">{i + 1}</td>
+                      <td className="celda-titulo">
                         <div className="td-b">{e.nombre}</div>
                         {e.telefono && (
                           wa ? (
@@ -290,16 +290,16 @@ export default function EntregasPage() {
                           )
                         )}
                       </td>
-                      <td className="td-m" style={{ maxWidth: 200 }}>
+                      <td className="td-m" data-label="Dirección" style={{ maxWidth: 200 }}>
                         <a href={mapsLink(e.direccion)} target="_blank" rel="noopener noreferrer" className="link-sutil">{e.direccion}</a>
                       </td>
-                      <td className="td-m celda-pedido">
+                      <td className="td-m celda-pedido" data-label="Pedido">
                         {e.detalle || "—"}
                         {e.notas && <div className="celda-nota">Nota: {e.notas}</div>}
                       </td>
-                      <td className="td-n">{formatPrecio(e.monto)}</td>
-                      <td className="td-m">{e.metodoPago}</td>
-                      <td><Badge variant={estado.color}>{estado.label}</Badge></td>
+                      <td className="td-n" data-label="Monto">{formatPrecio(e.monto)}</td>
+                      <td className="td-m" data-label="Pago">{e.metodoPago}</td>
+                      <td data-label="Estado"><Badge variant={estado.color}>{estado.label}</Badge></td>
                       <td className="td-act no-print" style={{ width: 180 }}>
                         {e.estado === "PENDIENTE" ? (
                           <button className="act-btn" onClick={() => cambiarEstado(e, "ENTREGADO")} title="Marcar entregado">
@@ -337,7 +337,7 @@ export default function EntregasPage() {
               <tfoot>
                 <tr>
                   <td colSpan={4} className="td-b" style={{ textAlign: "right" }}>Total de la hoja</td>
-                  <td className="td-b">{formatPrecio(totales.porCobrar + totales.cobrado)}</td>
+                  <td className="td-b" data-label="Total">{formatPrecio(totales.porCobrar + totales.cobrado)}</td>
                   <td colSpan={3}></td>
                 </tr>
               </tfoot>

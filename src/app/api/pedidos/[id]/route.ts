@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const pedido = await prisma.pedido.findUnique({
     where: { id: Number(id) },
@@ -15,6 +19,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const body = await req.json();
 
@@ -35,6 +42,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   await prisma.pedido.delete({ where: { id: Number(id) } });
   return NextResponse.json({ ok: true });

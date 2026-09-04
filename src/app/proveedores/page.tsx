@@ -86,7 +86,7 @@ export default function ProveedoresPage() {
       {/* Table */}
       <div className="card">
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>Proveedor</th>
@@ -105,11 +105,11 @@ export default function ProveedoresPage() {
               ) : (
                 proveedores.map((p) => (
                   <tr key={p.id}>
-                    <td className="td-b">{p.nombre}</td>
-                    <td className="td-m">{p.categoria || "—"}</td>
-                    <td className="td-m">{p.contacto || "—"}</td>
-                    <td className="td-m">{p.telefono || "—"}</td>
-                    <td className="td-m">{p.email || "—"}</td>
+                    <td className="celda-titulo td-b">{p.nombre}</td>
+                    <td className="td-m" data-label="Categoría">{p.categoria || "—"}</td>
+                    <td className="td-m" data-label="Contacto">{p.contacto || "—"}</td>
+                    <td className="td-m" data-label="Teléfono">{p.telefono || "—"}</td>
+                    <td className="td-m" data-label="Email">{p.email || "—"}</td>
                     <td className="td-act">
                       <button className="act-btn" onClick={() => handleEdit(p)} title="Editar">
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" /></svg>

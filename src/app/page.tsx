@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { haySesion } from "@/lib/guard";
 import { formatPrecio } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,9 @@ async function getStats() {
 }
 
 export default async function DashboardPage() {
+  // Esta página consulta la base directamente, así que verifica por su cuenta.
+  if (!(await haySesion())) redirect("/login");
+
   const stats = await getStats();
 
   return (
@@ -53,7 +58,7 @@ export default async function DashboardPage() {
             <span className="td-m" style={{ fontSize: 12 }}>{stats.bajosStock} productos por reponer</span>
           </div>
           <div className="tbl-wrap">
-            <table>
+            <table className="tbl-cards">
               <thead>
                 <tr>
                   <th></th>
@@ -67,14 +72,14 @@ export default async function DashboardPage() {
               <tbody>
                 {stats.stockBajoAlerts.map((p) => (
                   <tr key={p.id}>
-                    <td style={{ width: 30 }}>
+                    <td className="celda-oculta" style={{ width: 30 }}>
                       <span className={`alert-dot ${p.stock <= p.stockMinimo * 0.3 ? "red" : "yellow"}`} />
                     </td>
-                    <td className="td-b">{p.nombre}</td>
-                    <td className="td-m">{p.categoria}</td>
-                    <td>{p.stock}</td>
-                    <td className="td-m">{p.stockMinimo}</td>
-                    <td className="td-n">{formatPrecio(p.precio)}</td>
+                    <td className="celda-titulo td-b">{p.nombre}</td>
+                    <td className="td-m" data-label="Categoría">{p.categoria}</td>
+                    <td data-label="Stock actual">{p.stock}</td>
+                    <td className="td-m" data-label="Mínimo">{p.stockMinimo}</td>
+                    <td className="td-n" data-label="Precio">{formatPrecio(p.precio)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const encargo = await prisma.encargo.findUnique({ where: { id: Number(id) } });
   if (!encargo) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
@@ -9,6 +13,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   const body = await req.json();
   const encargoId = Number(id);
@@ -53,6 +60,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { id } = await params;
   await prisma.encargo.delete({ where: { id: Number(id) } });
   return NextResponse.json({ ok: true });

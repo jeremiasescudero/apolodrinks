@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { exigirSesion } from "@/lib/guard";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const { searchParams } = new URL(req.url);
   const tipo = searchParams.get("tipo");
   const search = searchParams.get("search");
@@ -26,6 +30,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const bloqueo = await exigirSesion();
+  if (bloqueo) return bloqueo;
+
   const body = await req.json();
 
   const cliente = await prisma.cliente.create({

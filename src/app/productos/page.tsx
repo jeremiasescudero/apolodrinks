@@ -194,7 +194,7 @@ export default function ProductosPage() {
       {/* Table */}
       <div className="card">
         <div className="tbl-wrap">
-          <table>
+          <table className="tbl-cards">
             <thead>
               <tr>
                 <th>Producto</th>
@@ -216,15 +216,15 @@ export default function ProductosPage() {
                   const status = stockStatus(p.stock, p.stockMinimo);
                   return (
                     <tr key={p.id}>
-                      <td className="td-b">
+                      <td className="celda-titulo td-b">
                         {p.nombre}
                         {p.esPromo && <Badge variant="info" style={{ marginLeft: 8, fontSize: 10 }}>Promo</Badge>}
                       </td>
-                      <td className="td-m">{p.categoria}</td>
-                      <td>{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stock)}</td>
-                      <td className="td-m">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stockMinimo)}</td>
-                      <td className="td-n">{formatPrecio(p.precio)}</td>
-                      <td>
+                      <td className="td-m" data-label="Categoría">{p.categoria}</td>
+                      <td data-label="Stock">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stock)}</td>
+                      <td className="td-m" data-label="Mínimo">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stockMinimo)}</td>
+                      <td className="td-n" data-label="Precio">{formatPrecio(p.precio)}</td>
+                      <td data-label="Estado">
                         {p.esPromo
                           ? <Badge variant="info">Promo</Badge>
                           : <Badge variant={status.variant}>{status.label}</Badge>
