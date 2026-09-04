@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     where.categoria = categoria;
   }
   if (search) {
-    where.nombre = { contains: search };
+    where.nombre = { contains: search, mode: "insensitive" };
   }
 
   const productos = await prisma.producto.findMany({

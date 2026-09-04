@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     where.metodoPago = metodo;
   }
   if (search) {
-    where.numero = { contains: search };
+    where.numero = { contains: search, mode: "insensitive" };
   }
   if (fecha) {
     const [y, m, d] = fecha.split("-").map(Number);

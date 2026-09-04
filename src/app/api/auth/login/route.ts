@@ -7,36 +7,11 @@ import {
   firmarSesion,
   verificarPassword,
 } from "@/lib/auth";
-
-const MAX_INTENTOS = 8;
-const VENTANA_MS = 15 * 60 * 1000;
-
-// Freno en memoria. Alcanza para un servidor único, que es este caso; si algún
-// día corre en varias instancias hay que moverlo a un almacén compartido.
-const intentos = new Map<string, { fallos: number; desde: number }>();
+import { anotarFallo, estaBloqueado, limpiarIntentos } from "@/lib/limite";
 
 function origen(req: NextRequest): string {
   const reenviado = req.headers.get("x-forwarded-for");
   return (reenviado ? reenviado.split(",")[0] : null)?.trim() || "desconocido";
-}
-
-function bloqueado(ip: string): boolean {
-  const reg = intentos.get(ip);
-  if (!reg) return false;
-  if (Date.now() - reg.desde > VENTANA_MS) {
-    intentos.delete(ip);
-    return false;
-  }
-  return reg.fallos >= MAX_INTENTOS;
-}
-
-function anotarFallo(ip: string) {
-  const reg = intentos.get(ip);
-  if (!reg || Date.now() - reg.desde > VENTANA_MS) {
-    intentos.set(ip, { fallos: 1, desde: Date.now() });
-    return;
-  }
-  reg.fallos += 1;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = origen(req);
-  if (bloqueado(ip)) {
+  if (await estaBloqueado(ip)) {
     return NextResponse.json(
       { error: "Demasiados intentos fallidos. Esperá unos minutos." },
       { status: 429 },
@@ -70,12 +45,12 @@ export async function POST(req: NextRequest) {
   const passwordOk = verificarPassword(password, config.hash);
 
   if (!usuarioOk || !passwordOk) {
-    anotarFallo(ip);
+    await anotarFallo(ip);
     // Un solo mensaje para los dos casos: no le decimos a nadie qué acertó.
     return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
   }
 
-  intentos.delete(ip);
+  await limpiarIntentos(ip);
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE_SESION, firmarSesion(config.secreto), {

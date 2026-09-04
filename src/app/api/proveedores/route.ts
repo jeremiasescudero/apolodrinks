@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = { activo: true };
   if (search) {
-    where.nombre = { contains: search };
+    where.nombre = { contains: search, mode: "insensitive" };
   }
 
   const proveedores = await prisma.proveedor.findMany({

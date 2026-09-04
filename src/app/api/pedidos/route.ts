@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   }
   if (search) {
     where.OR = [
-      { numero: { contains: search } },
-      { proveedor: { nombre: { contains: search } } },
+      { numero: { contains: search, mode: "insensitive" } },
+      { proveedor: { nombre: { contains: search, mode: "insensitive" } } },
     ];
   }
 
