@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar } from "@/lib/validar";
+import { METODOS_PAGO } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -50,6 +52,13 @@ export async function POST(req: NextRequest) {
   if (bloqueo) return bloqueo;
 
   const body = await req.json();
+
+  const error = validar(body, {
+    clienteId: { tipo: "number" },
+    metodoPago: { tipo: "enum", valores: METODOS_PAGO, obligatorio: true },
+    items: { tipo: "array", minLen: 1, obligatorio: true },
+  });
+  if (error) return error;
 
   const lastVenta = await prisma.venta.findFirst({ orderBy: { id: "desc" } });
   const nextNum = (lastVenta?.id ?? 0) + 1;

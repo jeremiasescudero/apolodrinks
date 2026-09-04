@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -148,8 +149,11 @@ export default function Sidebar() {
       {/* Escritorio: barra lateral fija */}
       <nav className="sidebar">
         <div className="sidebar-brand">
-          <h1>Apolo&apos;s Drinks</h1>
-          <p>Casa de Bebidas</p>
+          <Image src="/logo.png" alt="Apolo's Drinks" width={56} height={56} style={{ borderRadius: "50%" }} />
+          <div>
+            <h1>Apolo&apos;s Drinks</h1>
+            <p>Casa de Bebidas</p>
+          </div>
         </div>
 
         <div className="sidebar-nav">

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar, sanitizar } from "@/lib/validar";
+import { CATEGORIAS } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -32,9 +34,19 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
+  const error = validar(body, {
+    nombre: { tipo: "string", min: 1, max: 200, obligatorio: true },
+    categoria: { tipo: "enum", valores: CATEGORIAS, obligatorio: true },
+    precio: { tipo: "number", min: 0, obligatorio: true },
+    stock: { tipo: "number", min: 0 },
+    stockMinimo: { tipo: "number", min: 0 },
+    esPromo: { tipo: "boolean" },
+  });
+  if (error) return error;
+
   const producto = await prisma.producto.create({
     data: {
-      nombre: body.nombre,
+      nombre: sanitizar(body.nombre),
       categoria: body.categoria,
       precio: body.precio,
       stock: body.stock ?? 0,

@@ -198,6 +198,14 @@ const clientes = [
 async function main() {
   console.log("Seeding database...");
 
+  await prisma.cajaMovimiento.deleteMany();
+  await prisma.caja.deleteMany();
+  await prisma.ventaItem.deleteMany();
+  await prisma.venta.deleteMany();
+  await prisma.pedidoItem.deleteMany();
+  await prisma.pedido.deleteMany();
+  await prisma.encargo.deleteMany();
+  await prisma.promoComponente.deleteMany();
   await prisma.producto.deleteMany();
   await prisma.proveedor.deleteMany();
   await prisma.cliente.deleteMany();

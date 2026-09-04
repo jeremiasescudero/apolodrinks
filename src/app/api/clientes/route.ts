@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar, sanitizar } from "@/lib/validar";
+import { TIPOS_CLIENTE } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -35,13 +37,23 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
+  const error = validar(body, {
+    nombre: { tipo: "string", min: 1, max: 200, obligatorio: true },
+    tipo: { tipo: "enum", valores: TIPOS_CLIENTE },
+    telefono: { tipo: "string", max: 50 },
+    direccion: { tipo: "string", max: 300 },
+    email: { tipo: "string", max: 200 },
+    saldo: { tipo: "number" },
+  });
+  if (error) return error;
+
   const cliente = await prisma.cliente.create({
     data: {
-      nombre: body.nombre,
+      nombre: sanitizar(body.nombre),
       tipo: body.tipo ?? "Particular",
-      telefono: body.telefono ?? "",
-      direccion: body.direccion ?? "",
-      email: body.email ?? "",
+      telefono: sanitizar(body.telefono ?? ""),
+      direccion: sanitizar(body.direccion ?? ""),
+      email: sanitizar(body.email ?? ""),
       saldo: body.saldo ?? 0,
     },
   });

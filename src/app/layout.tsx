@@ -19,6 +19,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Apolo's Drinks - Sistema de Gestión",
   description: "Sistema de gestión para casa de bebidas",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

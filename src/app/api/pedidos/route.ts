@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar, sanitizar } from "@/lib/validar";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -38,6 +39,13 @@ export async function POST(req: NextRequest) {
   if (bloqueo) return bloqueo;
 
   const body = await req.json();
+
+  const error = validar(body, {
+    proveedorId: { tipo: "number", min: 1, obligatorio: true },
+    notas: { tipo: "string", max: 500 },
+    items: { tipo: "array", minLen: 1, obligatorio: true },
+  });
+  if (error) return error;
 
   const lastPedido = await prisma.pedido.findFirst({ orderBy: { id: "desc" } });
   const nextNum = (lastPedido?.id ?? 0) + 1;
