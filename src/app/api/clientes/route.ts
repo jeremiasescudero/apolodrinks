@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
     where.tipo = tipo;
   }
   if (search) {
-    where.nombre = { contains: search };
+    where.OR = [
+      { nombre: { contains: search } },
+      { telefono: { contains: search } },
+    ];
   }
 
   const clientes = await prisma.cliente.findMany({

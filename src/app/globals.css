@@ -560,3 +560,85 @@ tr:hover td { background: var(--color-primary-light) }
   .kpi-grid { grid-template-columns: 1fr }
 }
 @media(prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* ===== HOJA DE RUTA ===== */
+.inp-date {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+}
+.inp-date:focus { border-color: var(--color-primary) }
+.inp-area {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+}
+.inp-area:focus { border-color: var(--color-primary) }
+.link-sutil {
+  font-size: 12px;
+  color: var(--color-text-2);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--color-border-2);
+}
+.link-sutil:hover { color: var(--color-primary); border-bottom-color: var(--color-primary) }
+.celda-pedido { max-width: 240px; white-space: pre-wrap }
+.celda-nota { font-size: 11px; color: var(--color-text-3); margin-top: 2px }
+.row-anulada td { opacity: .5; text-decoration: line-through }
+.row-anulada td .badge { text-decoration: none }
+.sugerencias {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -6px 0 16px;
+}
+.sug-label { font-size: 12px; color: var(--color-text-3) }
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+tfoot td {
+  border-top: 1px solid var(--color-border-2);
+  background: var(--color-surface-2);
+}
+tfoot tr:hover td { background: var(--color-surface-2) }
+.act-btn:disabled { opacity: .25; cursor: default }
+.act-btn:disabled:hover { color: var(--color-text-3); background: none }
+
+/* ===== IMPRESIÓN (hoja de ruta para el repartidor) ===== */
+@media print {
+  .sidebar, .main-header, .no-print { display: none !important }
+  body { background: #fff; display: block }
+  .main { margin-left: 0 }
+  .main-content { padding: 0 }
+  .card {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+  }
+  .card-header { padding: 0 0 10px; border-bottom: 1px solid #000 }
+  .card-header h3 { font-size: 18px }
+  table { font-size: 12px }
+  th { color: #000; border-bottom: 1px solid #000 }
+  td { border-bottom: 1px solid #ccc }
+  tr:hover td { background: none }
+  .celda-pedido { max-width: none }
+  .badge { border: 1px solid #999; background: none !important; color: #000 !important }
+  .badge::before { display: none }
+  a { color: #000; text-decoration: none; border: none }
+  @page { margin: 14mm }
+}

@@ -19,12 +19,10 @@ export const ESTADOS_PEDIDO = {
   ENTREGADO: { label: "Entregado", color: "muted" },
 } as const;
 
-export const ESTADOS_ENTREGA = {
+export const ESTADOS_ENCARGO = {
   PENDIENTE: { label: "Pendiente", color: "warning" },
-  PREPARANDO: { label: "Preparando", color: "info" },
-  LISTO: { label: "Listo p/ salir", color: "success" },
-  EN_CAMINO: { label: "En camino", color: "info" },
-  ENTREGADO: { label: "Entregado", color: "muted" },
+  ENTREGADO: { label: "Entregado", color: "success" },
+  CANCELADO: { label: "Cancelado", color: "muted" },
 } as const;
 
 export const METODOS_PAGO = [
