@@ -1,0 +1,450 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
+import { formatPrecio } from "@/lib/utils";
+
+interface VentaItem {
+  producto: { nombre: string };
+  cantidad: number;
+  precioUnitario: number;
+}
+
+interface Venta {
+  id: number;
+  numero: string;
+  cliente: { nombre: string } | null;
+  metodoPago: string;
+  total: number;
+  createdAt: string;
+  items: VentaItem[];
+}
+
+interface Caja {
+  id: number;
+  fecha: string;
+  montoInicial: number;
+  estado: string;
+  openedAt: string;
+  closedAt: string | null;
+}
+
+export default function CajaPage() {
+  const toast = useToast();
+  const [caja, setCaja] = useState<Caja | null>(null);
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAbrir, setShowAbrir] = useState(false);
+  const [montoInicial, setMontoInicial] = useState(0);
+  const [showCerrar, setShowCerrar] = useState(false);
+  const [historial, setHistorial] = useState<Caja[]>([]);
+  const [showHistorial, setShowHistorial] = useState(false);
+  const [detailCaja, setDetailCaja] = useState<Caja | null>(null);
+  const [detailVentas, setDetailVentas] = useState<Venta[]>([]);
+
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const fetchCaja = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/caja?fecha=${todayStr()}`);
+    const data = await res.json();
+    setCaja(data);
+    if (data) {
+      const vRes = await fetch(`/api/ventas?fecha=${data.fecha.split("T")[0]}`);
+      setVentas(await vRes.json());
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchCaja() }, [fetchCaja]);
+
+  const handleAbrir = async () => {
+    await fetch("/api/caja", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ montoInicial }),
+    });
+    toast("Caja abierta");
+    setShowAbrir(false);
+    setMontoInicial(0);
+    fetchCaja();
+  };
+
+  const handleCerrar = async () => {
+    if (!caja) return;
+    await fetch(`/api/caja/${caja.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cerrar" }),
+    });
+    toast("Caja cerrada");
+    setShowCerrar(false);
+    fetchCaja();
+  };
+
+  const openHistorial = async () => {
+    const res = await fetch("/api/caja");
+    setHistorial(await res.json());
+    setShowHistorial(true);
+  };
+
+  const openDetail = async (c: Caja) => {
+    const vRes = await fetch(`/api/ventas?fecha=${c.fecha.split("T")[0]}`);
+    setDetailVentas(await vRes.json());
+    setDetailCaja(c);
+    setShowHistorial(false);
+  };
+
+  const calcTotales = (vs: Venta[]) => {
+    const porMetodo: Record<string, number> = {};
+    let totalVentas = 0;
+    for (const v of vs) {
+      porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.total;
+      totalVentas += v.total;
+    }
+    return { porMetodo, totalVentas, cantVentas: vs.length };
+  };
+
+  const formatFecha = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const formatHora = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const METODO_VARIANT: Record<string, "success" | "info" | "warning" | "muted"> = {
+    Efectivo: "success",
+    Transferencia: "info",
+    "Débito": "warning",
+    "Crédito": "muted",
+  };
+
+  if (loading) {
+    return <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--color-text-3)" }}>Cargando...</div>;
+  }
+
+  if (!caja) {
+    return (
+      <>
+        <div className="sec-bar">
+          <div />
+          <button className="btn btn-accent" onClick={openHistorial}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 4v4h3" /></svg>
+            Historial
+          </button>
+        </div>
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <svg viewBox="0 0 48 48" fill="none" stroke="var(--color-text-3)" strokeWidth="2" width="48" height="48" style={{ margin: "0 auto 16px" }}>
+            <rect x="6" y="10" width="36" height="28" rx="3" />
+            <path d="M6 18h36" />
+            <path d="M16 10V6M32 10V6" />
+          </svg>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-1)", marginBottom: 4 }}>
+            No hay caja abierta hoy
+          </p>
+          <p style={{ fontSize: 13, color: "var(--color-text-3)", marginBottom: 20 }}>
+            Abrí la caja para comenzar a registrar el día.
+          </p>
+          <button className="btn btn-p" onClick={() => setShowAbrir(true)}>Abrir caja</button>
+        </div>
+
+        <Modal open={showAbrir} onClose={() => setShowAbrir(false)} title="Abrir caja del día"
+          footer={<>
+            <button className="btn btn-o" onClick={() => setShowAbrir(false)}>Cancelar</button>
+            <button className="btn btn-p" onClick={handleAbrir}>Abrir caja</button>
+          </>}
+        >
+          <div className="form-group">
+            <label>Monto inicial en caja ($)</label>
+            <input type="number" value={montoInicial} onChange={(e) => setMontoInicial(Number(e.target.value))} placeholder="0" />
+            <span style={{ fontSize: 12, color: "var(--color-text-3)", marginTop: 4 }}>
+              Efectivo con el que se inicia el día.
+            </span>
+          </div>
+        </Modal>
+
+        {renderHistorialModal()}
+        {renderDetailModal()}
+      </>
+    );
+  }
+
+  const { porMetodo, totalVentas, cantVentas } = calcTotales(ventas);
+  const apertura = caja.montoInicial;
+  const efectivoFinal = apertura + (porMetodo["Efectivo"] || 0);
+  const isClosed = caja.estado === "CERRADA";
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="sec-bar">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Badge variant={isClosed ? "muted" : "success"}>{isClosed ? "Cerrada" : "Abierta"}</Badge>
+          <span style={{ fontSize: 13, color: "var(--color-text-2)" }}>
+            {formatFecha(caja.fecha)} — Apertura: {formatHora(caja.openedAt)}
+            {caja.closedAt && ` — Cierre: ${formatHora(caja.closedAt)}`}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-accent" onClick={openHistorial}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 4v4h3" /></svg>
+            Historial
+          </button>
+          {!isClosed && (
+            <>
+              <button className="btn btn-o" onClick={fetchCaja}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 8A6 6 0 1 1 8 2" /><path d="M14 2v4h-4" /></svg>
+                Actualizar
+              </button>
+              <button className="btn btn-danger" onClick={() => setShowCerrar(true)}>Cerrar caja</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+        <div className="kpi-card">
+          <span className="kpi-label">Apertura (efectivo)</span>
+          <span className="kpi-value">{formatPrecio(apertura)}</span>
+        </div>
+        <div className="kpi-card">
+          <span className="kpi-label">Ventas del día</span>
+          <span className="kpi-value" style={{ color: "var(--color-success)" }}>{cantVentas}</span>
+        </div>
+        <div className="kpi-card">
+          <span className="kpi-label">Total vendido</span>
+          <span className="kpi-value" style={{ color: "var(--color-success)" }}>{formatPrecio(totalVentas)}</span>
+        </div>
+        <div className="kpi-card">
+          <span className="kpi-label">Efectivo en caja</span>
+          <span className="kpi-value">{formatPrecio(efectivoFinal)}</span>
+        </div>
+      </div>
+
+      {/* Desglose por método */}
+      {Object.keys(porMetodo).length > 0 && (
+        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-1)", marginBottom: 10 }}>
+            Recaudación por método de pago
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(porMetodo).length, 4)}, 1fr)`, gap: 16 }}>
+            {Object.entries(porMetodo).map(([metodo, total]) => (
+              <div key={metodo} style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ marginBottom: 4 }}>
+                  <Badge variant={METODO_VARIANT[metodo] ?? "muted"}>{metodo}</Badge>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-1)" }}>{formatPrecio(total)}</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-3)" }}>
+                  {ventas.filter((v) => v.metodoPago === metodo).length} venta{ventas.filter((v) => v.metodoPago === metodo).length !== 1 ? "s" : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ventas del día */}
+      <div className="card">
+        <div style={{ padding: "12px 16px 0", fontSize: 13, fontWeight: 600, color: "var(--color-text-1)" }}>
+          Ventas del día
+        </div>
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>Hora</th>
+                <th>Cliente</th>
+                <th>Items</th>
+                <th>Método</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ventas.length === 0 ? (
+                <tr><td colSpan={6} className="empty-msg">No hay ventas registradas hoy</td></tr>
+              ) : (
+                ventas.map((v) => (
+                  <tr key={v.id}>
+                    <td className="td-b">{v.numero}</td>
+                    <td className="td-m">{formatHora(v.createdAt)}</td>
+                    <td className="td-m">{v.cliente?.nombre || "—"}</td>
+                    <td className="td-m">{v.items.length} prod.</td>
+                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td className="td-n">{formatPrecio(v.total)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Cerrar Caja */}
+      <Modal open={showCerrar} onClose={() => setShowCerrar(false)} title="Cerrar caja del día"
+        footer={<>
+          <button className="btn btn-o" onClick={() => setShowCerrar(false)}>Cancelar</button>
+          <button className="btn btn-danger" onClick={handleCerrar}>Cerrar caja</button>
+        </>}
+      >
+        <div style={{ fontSize: 13, color: "var(--color-text-2)", marginBottom: 16 }}>
+          Resumen del día antes de cerrar:
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Apertura</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{formatPrecio(apertura)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Ventas</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-success)" }}>{cantVentas} ({formatPrecio(totalVentas)})</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Efectivo en caja</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{formatPrecio(efectivoFinal)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Total digital</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{formatPrecio(totalVentas - (porMetodo["Efectivo"] || 0))}</div>
+          </div>
+        </div>
+        {Object.keys(porMetodo).length > 0 && (
+          <div style={{ padding: 12, background: "var(--color-surface-2)", borderRadius: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase", marginBottom: 8 }}>Desglose</div>
+            {Object.entries(porMetodo).map(([metodo, total]) => (
+              <div key={metodo} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <span style={{ color: "var(--color-text-2)" }}>{metodo}</span>
+                <span style={{ fontWeight: 600, color: "var(--color-text-1)" }}>{formatPrecio(total)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {renderHistorialModal()}
+      {renderDetailModal()}
+    </>
+  );
+
+  function renderHistorialModal() {
+    return (
+      <Modal open={showHistorial} onClose={() => setShowHistorial(false)} title="Historial de cajas" wide
+        footer={<button className="btn btn-o" onClick={() => setShowHistorial(false)}>Cerrar</button>}
+      >
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Apertura</th>
+                <th>Ventas</th>
+                <th>Total vendido</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {historial.length === 0 ? (
+                <tr><td colSpan={6} className="empty-msg">No hay registros</td></tr>
+              ) : (
+                historial.map((c) => (
+                  <tr key={c.id}>
+                    <td className="td-b">{formatFecha(c.fecha)}</td>
+                    <td><Badge variant={c.estado === "ABIERTA" ? "success" : "muted"}>{c.estado === "ABIERTA" ? "Abierta" : "Cerrada"}</Badge></td>
+                    <td className="td-n">{formatPrecio(c.montoInicial)}</td>
+                    <td className="td-m">—</td>
+                    <td className="td-n">—</td>
+                    <td className="td-act">
+                      <button className="act-btn" onClick={() => openDetail(c)} title="Ver detalle">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6" /><path d="M8 5v3h3" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+    );
+  }
+
+  function renderDetailModal() {
+    if (!detailCaja) return null;
+    const t = calcTotales(detailVentas);
+
+    return (
+      <Modal open={detailCaja !== null} onClose={() => setDetailCaja(null)} title={`Caja ${formatFecha(detailCaja.fecha)}`} wide
+        footer={<button className="btn btn-o" onClick={() => setDetailCaja(null)}>Cerrar</button>}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Apertura</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{formatPrecio(detailCaja.montoInicial)}</div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Ventas</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{t.cantVentas}</div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Total vendido</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-success)" }}>{formatPrecio(t.totalVentas)}</div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Efectivo en caja</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{formatPrecio(detailCaja.montoInicial + (t.porMetodo["Efectivo"] || 0))}</div>
+          </div>
+        </div>
+
+        {Object.keys(t.porMetodo).length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(Object.keys(t.porMetodo).length, 4)}, 1fr)`, gap: 16, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
+            {Object.entries(t.porMetodo).map(([metodo, total]) => (
+              <div key={metodo} style={{ textAlign: "center" }}>
+                <Badge variant={METODO_VARIANT[metodo] ?? "muted"}>{metodo}</Badge>
+                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{formatPrecio(total)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>Hora</th>
+                <th>Cliente</th>
+                <th>Método</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailVentas.length === 0 ? (
+                <tr><td colSpan={5} className="empty-msg">Sin ventas</td></tr>
+              ) : (
+                detailVentas.map((v) => (
+                  <tr key={v.id}>
+                    <td className="td-b">{v.numero}</td>
+                    <td className="td-m">{formatHora(v.createdAt)}</td>
+                    <td className="td-m">{v.cliente?.nombre || "—"}</td>
+                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td className="td-n">{formatPrecio(v.total)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+    );
+  }
+}

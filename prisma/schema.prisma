@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Producto {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  categoria   String
+  precio      Int
+  stock       Int      @default(0)
+  stockMinimo Int      @default(0)
+  esPromo     Boolean  @default(false)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ventaItems    VentaItem[]
+  pedidoItems   PedidoItem[]
+  componentes   PromoComponente[] @relation("PromoComponentes")
+  componenteDe  PromoComponente[] @relation("ComponenteDe")
+}
+
+model PromoComponente {
+  id          Int      @id @default(autoincrement())
+  promoId     Int
+  promo       Producto @relation("PromoComponentes", fields: [promoId], references: [id], onDelete: Cascade)
+  productoId  Int
+  producto    Producto @relation("ComponenteDe", fields: [productoId], references: [id])
+  cantidad    Int      @default(1)
+}
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  tipo      String   @default("Particular")
+  telefono  String   @default("")
+  direccion String   @default("")
+  email     String   @default("")
+  saldo     Int      @default(0)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventas  Venta[]
+}
+
+model Proveedor {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  categoria String   @default("")
+  contacto  String   @default("")
+  telefono  String   @default("")
+  email     String   @default("")
+  direccion String   @default("")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pedidos Pedido[]
+}
+
+model Pedido {
+  id           Int      @id @default(autoincrement())
+  numero       String   @unique
+  proveedorId  Int
+  proveedor    Proveedor @relation(fields: [proveedorId], references: [id])
+  estado       String   @default("PENDIENTE")
+  total        Int      @default(0)
+  notas        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items PedidoItem[]
+}
+
+model PedidoItem {
+  id             Int      @id @default(autoincrement())
+  pedidoId       Int
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  productoId     Int
+  producto       Producto @relation(fields: [productoId], references: [id])
+  cantidad       Int
+  precioUnitario Int
+}
+
+model Venta {
+  id         Int      @id @default(autoincrement())
+  numero     String   @unique
+  clienteId  Int?
+  cliente    Cliente? @relation(fields: [clienteId], references: [id])
+  metodoPago String
+  total      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  items VentaItem[]
+}
+
+model VentaItem {
+  id             Int      @id @default(autoincrement())
+  ventaId        Int
+  venta          Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  productoId     Int
+  producto       Producto @relation(fields: [productoId], references: [id])
+  cantidad       Int
+  precioUnitario Int
+}
+
+model Caja {
+  id           Int       @id @default(autoincrement())
+  fecha        DateTime  @unique
+  montoInicial Int       @default(0)
+  estado       String    @default("ABIERTA")
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+
+  movimientos CajaMovimiento[]
+}
+
+model CajaMovimiento {
+  id         Int      @id @default(autoincrement())
+  cajaId     Int
+  caja       Caja     @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+  concepto   String
+  metodoPago String   @default("")
+  monto      Int
+  tipo       String
+  createdAt  DateTime @default(now())
+}
