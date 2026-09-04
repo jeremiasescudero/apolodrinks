@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   await limpiarIntentos(ip);
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_SESION, firmarSesion(config.secreto), {
+  res.cookies.set(COOKIE_SESION, await firmarSesion(config.secreto), {
     httpOnly: true,                                  // fuera del alcance de cualquier script
     sameSite: "lax",                                 // corta el CSRF desde otros sitios
     secure: process.env.NODE_ENV === "production",   // sobre HTTPS no viaja en claro

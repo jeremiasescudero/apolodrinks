@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { COOKIE_SESION, verificarSesion } from "./auth";
+import { COOKIE_SESION, verificarSesion } from "./sesion";
 
 /**
  * Segunda línea de defensa. El proxy ya filtra, pero la documentación de Next
@@ -9,7 +9,7 @@ import { COOKIE_SESION, verificarSesion } from "./auth";
  */
 export async function haySesion(): Promise<boolean> {
   const almacen = await cookies();
-  return verificarSesion(almacen.get(COOKIE_SESION)?.value, process.env.AUTH_SECRET);
+  return await verificarSesion(almacen.get(COOKIE_SESION)?.value, process.env.AUTH_SECRET);
 }
 
 export async function exigirSesion(): Promise<NextResponse | null> {

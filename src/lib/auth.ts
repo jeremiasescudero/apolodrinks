@@ -1,7 +1,7 @@
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
-export const COOKIE_SESION = "apolo_sesion";
-export const DURACION_SESION_SEG = 60 * 60 * 24 * 7; // una semana
+// La sesión vive en sesion.ts, sin node:crypto, porque la carga el proxy.
+export { COOKIE_SESION, DURACION_SESION_SEG, firmarSesion, verificarSesion } from "./sesion";
 
 // scrypt es lento y usa memoria a propósito: encarece muchísimo probar contraseñas a lo bruto.
 // maxmem explícito porque 128 * N * r supera el tope que Node trae por defecto.
@@ -66,37 +66,4 @@ export function compararConstante(a: string, b: string): boolean {
   const ha = createHash("sha256").update(a.normalize("NFKC")).digest();
   const hb = createHash("sha256").update(b.normalize("NFKC")).digest();
   return timingSafeEqual(ha, hb);
-}
-
-function firmar(cuerpo: string, secreto: string): string {
-  return createHmac("sha256", secreto).update(cuerpo).digest("base64url");
-}
-
-export function firmarSesion(secreto: string, ahoraMs: number = Date.now()): string {
-  const ahora = Math.floor(ahoraMs / 1000);
-  const cuerpo = Buffer.from(JSON.stringify({ iat: ahora, exp: ahora + DURACION_SESION_SEG })).toString("base64url");
-  return `v1.${cuerpo}.${firmar(cuerpo, secreto)}`;
-}
-
-/**
- * Valida firma y vencimiento. La cookie no guarda ningún dato sensible: solo
- * dice "esta sesión la emitió este servidor y todavía no venció".
- */
-export function verificarSesion(token: string | undefined, secreto: string | undefined): boolean {
-  if (!token || !secreto) return false;
-
-  const partes = token.split(".");
-  if (partes.length !== 3 || partes[0] !== "v1") return false;
-
-  const [, cuerpo, firma] = partes;
-  const esperada = Buffer.from(firmar(cuerpo, secreto));
-  const recibida = Buffer.from(firma);
-  if (recibida.length !== esperada.length || !timingSafeEqual(recibida, esperada)) return false;
-
-  try {
-    const payload = JSON.parse(Buffer.from(cuerpo, "base64url").toString());
-    return typeof payload.exp === "number" && payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
 }
