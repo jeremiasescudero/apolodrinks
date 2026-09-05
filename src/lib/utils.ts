@@ -54,3 +54,19 @@ export function formatFechaLarga(fechaStr: string): string {
     year: "numeric",
   });
 }
+
+/**
+ * Ganancia de un producto. Devuelve null si no hay costo cargado: un costo en 0
+ * significa "todavía no lo sé", no "me sale gratis", y mostrar 100% de margen
+ * en 150 productos sin cargar sería mentira.
+ */
+export function ganancia(precio: number, costo: number): { pesos: number; margen: number } | null {
+  if (costo <= 0) return null;
+  const pesos = precio - costo;
+  return { pesos, margen: precio > 0 ? (pesos / precio) * 100 : 0 };
+}
+
+/** formatPrecio usa Math.abs, así que para valores que pueden ser negativos hay que reponer el signo. */
+export function formatPrecioConSigno(n: number): string {
+  return (n < 0 ? "-" : "") + formatPrecio(n);
+}

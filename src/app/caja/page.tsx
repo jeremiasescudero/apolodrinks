@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { formatPrecio } from "@/lib/utils";
+import { formatPrecio, formatPrecioConSigno } from "@/lib/utils";
 
 interface VentaItem {
   producto: { nombre: string };
   cantidad: number;
   precioUnitario: number;
+  costoUnitario: number;
 }
 
 interface Venta {
@@ -103,11 +104,26 @@ export default function CajaPage() {
   const calcTotales = (vs: Venta[]) => {
     const porMetodo: Record<string, number> = {};
     let totalVentas = 0;
+    let ganancia = 0;
+    let unidadesSinCosto = 0;
+    let unidadesConCosto = 0;
+
     for (const v of vs) {
       porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.total;
       totalVentas += v.total;
+      for (const it of v.items) {
+        // costoUnitario en 0 significa que no se sabía el costo al vender.
+        // Esas unidades quedan afuera: inventar la ganancia sería peor que no darla.
+        if (it.costoUnitario > 0) {
+          ganancia += (it.precioUnitario - it.costoUnitario) * it.cantidad;
+          unidadesConCosto += it.cantidad;
+        } else {
+          unidadesSinCosto += it.cantidad;
+        }
+      }
     }
-    return { porMetodo, totalVentas, cantVentas: vs.length };
+
+    return { porMetodo, totalVentas, cantVentas: vs.length, ganancia, unidadesConCosto, unidadesSinCosto };
   };
 
   const formatFecha = (iso: string) => {
@@ -177,7 +193,7 @@ export default function CajaPage() {
     );
   }
 
-  const { porMetodo, totalVentas, cantVentas } = calcTotales(ventas);
+  const { porMetodo, totalVentas, cantVentas, ganancia, unidadesConCosto, unidadesSinCosto } = calcTotales(ventas);
   const apertura = caja.montoInicial;
   const efectivoFinal = apertura + (porMetodo["Efectivo"] || 0);
   const isClosed = caja.estado === "CERRADA";
@@ -211,7 +227,7 @@ export default function CajaPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+      <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
         <div className="kpi-card">
           <span className="kpi-label">Apertura (efectivo)</span>
           <span className="kpi-value">{formatPrecio(apertura)}</span>
@@ -223,6 +239,19 @@ export default function CajaPage() {
         <div className="kpi-card">
           <span className="kpi-label">Total vendido</span>
           <span className="kpi-value" style={{ color: "var(--color-success)" }}>{formatPrecio(totalVentas)}</span>
+        </div>
+        <div className="kpi-card">
+          <span className="kpi-label">Ganancia del día</span>
+          <span className="kpi-value" style={{ color: unidadesConCosto === 0 ? "var(--color-text-3)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
+            {unidadesConCosto === 0 ? "—" : formatPrecioConSigno(ganancia)}
+          </span>
+          <span className="kpi-sub">
+            {unidadesConCosto === 0
+              ? "sin costos cargados"
+              : unidadesSinCosto > 0
+                ? `${unidadesSinCosto} u. sin costo quedan afuera`
+                : "sobre todo lo vendido"}
+          </span>
         </div>
         <div className="kpi-card">
           <span className="kpi-label">Efectivo en caja</span>
@@ -317,6 +346,19 @@ export default function CajaPage() {
             <div style={{ fontSize: 15, fontWeight: 600 }}>{formatPrecio(totalVentas - (porMetodo["Efectivo"] || 0))}</div>
           </div>
         </div>
+        <div style={{ padding: "12px 14px", background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16, borderLeft: `3px solid ${unidadesConCosto === 0 ? "var(--color-border-2)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)"}` }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: ".4px" }}>Ganancia del día</div>
+          <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, marginTop: 2, color: unidadesConCosto === 0 ? "var(--color-text-3)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
+            {unidadesConCosto === 0 ? "—" : formatPrecioConSigno(ganancia)}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-text-2)", marginTop: 4 }}>
+            {unidadesConCosto === 0
+              ? "Ningún producto vendido tiene el precio de costo cargado, así que no se puede calcular."
+              : unidadesSinCosto > 0
+                ? `Calculado sobre ${unidadesConCosto} unidades. Otras ${unidadesSinCosto} no tienen costo cargado y quedan afuera.`
+                : `Sobre las ${unidadesConCosto} unidades vendidas hoy.`}
+          </div>
+        </div>
         {Object.keys(porMetodo).length > 0 && (
           <div style={{ padding: 12, background: "var(--color-surface-2)", borderRadius: 8 }}>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase", marginBottom: 8 }}>Desglose</div>
@@ -386,7 +428,7 @@ export default function CajaPage() {
       <Modal open={detailCaja !== null} onClose={() => setDetailCaja(null)} title={`Caja ${formatFecha(detailCaja.fecha)}`} wide
         footer={<button className="btn btn-o" onClick={() => setDetailCaja(null)}>Cerrar</button>}
       >
-        <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+        <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Apertura</div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>{formatPrecio(detailCaja.montoInicial)}</div>
@@ -398,6 +440,12 @@ export default function CajaPage() {
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Total vendido</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-success)" }}>{formatPrecio(t.totalVentas)}</div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Ganancia</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: t.unidadesConCosto === 0 ? "var(--color-text-3)" : t.ganancia < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
+              {t.unidadesConCosto === 0 ? "—" : formatPrecioConSigno(t.ganancia)}
+            </div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase" }}>Efectivo en caja</div>

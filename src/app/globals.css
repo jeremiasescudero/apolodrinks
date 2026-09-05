@@ -891,3 +891,20 @@ tfoot tr:hover td { background: var(--color-surface-2) }
   a { color: #000; text-decoration: none; border: none }
   @page { margin: 14mm }
 }
+
+/* ===== GANANCIA POR PRODUCTO ===== */
+.gan-pos { color: var(--color-success); font-weight: 600 }
+.gan-neg { color: var(--color-danger); font-weight: 600 }
+.gan-pos small, .gan-neg small {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  opacity: .75;
+}
+.gan-hint {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+  font-size: 13px;
+}

@@ -15,6 +15,8 @@ model Producto {
   nombre      String
   categoria   String
   precio      Int
+  /// Lo que cuesta reponerlo. 0 = todavía no se cargó, no "gratis".
+  costo       Int      @default(0)
   stock       Int      @default(0)
   stockMinimo Int      @default(0)
   esPromo     Boolean  @default(false)
@@ -112,6 +114,9 @@ model VentaItem {
   producto       Producto @relation(fields: [productoId], references: [id])
   cantidad       Int
   precioUnitario Int
+  /// Foto del costo al momento de vender. Sin esto, cambiar el costo de un
+  /// producto reescribiría la ganancia de todos los cierres ya hechos.
+  costoUnitario  Int      @default(0)
 }
 
 model Caja {

@@ -68,6 +68,15 @@ export async function POST(req: NextRequest) {
   const total = items.reduce((sum, i) => sum + i.cantidad * i.precioUnitario, 0);
 
   const venta = await prisma.$transaction(async (tx) => {
+    // El costo se lee del servidor, nunca de lo que mande el navegador, y se
+    // congela en la venta: así la ganancia de un cierre ya hecho no cambia
+    // aunque después se actualice el costo del producto.
+    const productos = await tx.producto.findMany({
+      where: { id: { in: items.map((i) => i.productoId) } },
+      select: { id: true, costo: true },
+    });
+    const costoPorProducto = new Map(productos.map((p) => [p.id, p.costo]));
+
     const v = await tx.venta.create({
       data: {
         numero,
@@ -79,6 +88,7 @@ export async function POST(req: NextRequest) {
             productoId: i.productoId,
             cantidad: i.cantidad,
             precioUnitario: i.precioUnitario,
+            costoUnitario: costoPorProducto.get(i.productoId) ?? 0,
           })),
         },
       },
