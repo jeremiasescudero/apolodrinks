@@ -221,6 +221,71 @@ async function main() {
   }
   console.log(`  ${clientes.length} clientes creados`);
 
+  // Componentes de promos: mapeo nombre promo -> [{nombre componente, cantidad}]
+  const promoComponentes: Record<string, { nombre: string; cantidad: number }[]> = {
+    "Fernet 1L + 2 Coca 2L": [{ nombre: "Fernet Branca 1L", cantidad: 1 }, { nombre: "Coca-Cola / Sprite / Fanta 2L", cantidad: 2 }],
+    "Fernet 750 + 2 Cocas 2L": [{ nombre: "Fernet Branca 750", cantidad: 1 }, { nombre: "Coca-Cola / Sprite / Fanta 2L", cantidad: 2 }],
+    "Fernet 750 + 2 Cocas 1.5": [{ nombre: "Fernet Branca 750", cantidad: 1 }, { nombre: "Coca-Cola / Sprite 1.5L", cantidad: 2 }],
+    "Fernet 750 + 1 Coca 2.25": [{ nombre: "Fernet Branca 750", cantidad: 1 }, { nombre: "Coca-Cola 2.5L Descartable", cantidad: 1 }],
+    "Fernet 750 + 1 Coca 2L": [{ nombre: "Fernet Branca 750", cantidad: 1 }, { nombre: "Coca-Cola / Sprite / Fanta 2L", cantidad: 1 }],
+    "Fernet 450 + 1 Coca 2L": [{ nombre: "Fernet 450", cantidad: 1 }, { nombre: "Coca-Cola / Sprite / Fanta 2L", cantidad: 1 }],
+    "Fernet 450 + 1 Coca 1.5": [{ nombre: "Fernet 450", cantidad: 1 }, { nombre: "Coca-Cola / Sprite 1.5L", cantidad: 1 }],
+    "Skyy + 4 Speed": [{ nombre: "Skyy", cantidad: 1 }, { nombre: "Speed", cantidad: 4 }],
+    "Skyy + 2 Speed XL": [{ nombre: "Skyy", cantidad: 1 }, { nombre: "Speed XL", cantidad: 2 }],
+    "Skyy + 2 Monster": [{ nombre: "Skyy", cantidad: 1 }, { nombre: "Monster", cantidad: 2 }],
+    "Skyy + 1 Cepita 1.5": [{ nombre: "Skyy", cantidad: 1 }, { nombre: "Cepita 1.5L", cantidad: 1 }],
+    "Skyy + 4 Red Bull": [{ nombre: "Skyy", cantidad: 1 }, { nombre: "Red Bull", cantidad: 4 }],
+    "Smirnoff + 4 Speed": [{ nombre: "Smirnoff", cantidad: 1 }, { nombre: "Speed", cantidad: 4 }],
+    "Smirnoff + 2 Speed XL": [{ nombre: "Smirnoff", cantidad: 1 }, { nombre: "Speed XL", cantidad: 2 }],
+    "Smirnoff + 2 Monster": [{ nombre: "Smirnoff", cantidad: 1 }, { nombre: "Monster", cantidad: 2 }],
+    "Smirnoff + 1 Cepita 1.5": [{ nombre: "Smirnoff", cantidad: 1 }, { nombre: "Cepita 1.5L", cantidad: 1 }],
+    "Smirnoff + 4 Red Bull": [{ nombre: "Smirnoff", cantidad: 1 }, { nombre: "Red Bull", cantidad: 4 }],
+    "Absolut + 2 Speed XL": [{ nombre: "Absolut", cantidad: 1 }, { nombre: "Speed XL", cantidad: 2 }],
+    "Absolut + 4 Red Bull": [{ nombre: "Absolut", cantidad: 1 }, { nombre: "Red Bull", cantidad: 4 }],
+    "New Style + 2 Speed XL": [{ nombre: "New Style", cantidad: 1 }, { nombre: "Speed XL", cantidad: 2 }],
+    "New Style + 1 Cepita 1.5": [{ nombre: "New Style", cantidad: 1 }, { nombre: "Cepita 1.5L", cantidad: 1 }],
+    "Campari + 1 Cepita 1.5": [{ nombre: "Campari", cantidad: 1 }, { nombre: "Cepita 1.5L", cantidad: 1 }],
+    "Gancia + 1 Sprite 2L": [{ nombre: "Gancia", cantidad: 1 }, { nombre: "Coca-Cola / Sprite / Fanta 2L", cantidad: 1 }],
+    "Gin Gordon + Tónica": [{ nombre: "Gin Gordon", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Gordon Rosa + Tónica": [{ nombre: "Gin Gordon Rosa", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Heredero + Tónica": [{ nombre: "Gin Heredero", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Heredero Rosa + Tónica": [{ nombre: "Gin Heredero Pink/Pomelo", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Brighton + Tónica": [{ nombre: "Gin Brighton", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Brighton Pink + Tónica": [{ nombre: "Gin Brighton Pink", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Blu + Tónica": [{ nombre: "Gin Blu", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Aconcagua Blanco + Tónica": [{ nombre: "Gin Aconcagua Blanco", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "Gin Aconcagua Rosa + Tónica": [{ nombre: "Gin Aconcagua Rosa", cantidad: 1 }, { nombre: "Tónica / Pomelo", cantidad: 1 }],
+    "2 Balbo + 1 Pritty 2.25": [{ nombre: "Balbo", cantidad: 2 }, { nombre: "Pritty 2.25L", cantidad: 1 }],
+    "2 Balbo + 1 Pritty 3": [{ nombre: "Balbo", cantidad: 2 }, { nombre: "Pritty 3L", cantidad: 1 }],
+    "2 Canciller + 1 Pritty 2.25": [{ nombre: "Canciller", cantidad: 2 }, { nombre: "Pritty 2.25L", cantidad: 1 }],
+    "2 Balbo + 1 Secco 3L": [{ nombre: "Balbo", cantidad: 2 }, { nombre: "Secco 3L", cantidad: 1 }],
+    "2 Vino Toro + 1 Pritty 2.25": [{ nombre: "Toro Tinto Tetra", cantidad: 2 }, { nombre: "Pritty 2.25L", cantidad: 1 }],
+    "2 Nativo Tinto + 1 Pritty 2.25": [{ nombre: "Nativo Tinto", cantidad: 2 }, { nombre: "Pritty 2.25L", cantidad: 1 }],
+    "Chandon + 1 Speed XL": [{ nombre: "Champagne Chandon", cantidad: 1 }, { nombre: "Speed XL", cantidad: 1 }],
+    "Jäger + 4 Red Bull": [{ nombre: "Red Bull", cantidad: 4 }],
+    "Red Label + 4 Red Bull": [{ nombre: "Red Bull", cantidad: 4 }],
+    "Damonjag + 4 Red Bull": [{ nombre: "Red Bull", cantidad: 4 }],
+  };
+
+  const allProds = await prisma.producto.findMany();
+  const byName = new Map(allProds.map((p) => [p.nombre, p.id]));
+
+  let compCount = 0;
+  for (const [promoNombre, comps] of Object.entries(promoComponentes)) {
+    const promoId = byName.get(promoNombre);
+    if (!promoId) { console.warn(`  Promo no encontrada: ${promoNombre}`); continue; }
+
+    for (const comp of comps) {
+      const productoId = byName.get(comp.nombre);
+      if (!productoId) { console.warn(`  Componente no encontrado: ${comp.nombre}`); continue; }
+      await prisma.promoComponente.create({
+        data: { promoId, productoId, cantidad: comp.cantidad },
+      });
+      compCount++;
+    }
+  }
+  console.log(`  ${compCount} componentes de promos asignados`);
+
   console.log("Seed completado!");
 }
 
