@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { esFechaValida, rangoDelDia } from "@/lib/fecha";
 import { validar } from "@/lib/validar";
 import { METODOS_PAGO } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
@@ -24,9 +25,12 @@ export async function GET(req: NextRequest) {
     where.numero = { contains: search, mode: "insensitive" };
   }
   if (fecha) {
-    const [y, m, d] = fecha.split("-").map(Number);
-    const dayStart = new Date(y, m - 1, d);
-    const dayEnd = new Date(y, m - 1, d + 1);
+    if (!esFechaValida(fecha)) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+    // El día del negocio, no el del servidor: una venta de las 22:00 en Córdoba
+    // caía en el día siguiente y quedaba fuera del cierre de caja.
+    const { desde: dayStart, hasta: dayEnd } = rangoDelDia(fecha);
     where.createdAt = { gte: dayStart, lt: dayEnd };
   } else if (desde) {
     where.createdAt = {

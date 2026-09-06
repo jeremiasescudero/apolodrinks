@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero, { aNumero } from "@/components/ui/InputNumero";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrecio, formatPrecioConSigno } from "@/lib/utils";
 
@@ -32,13 +33,17 @@ interface Caja {
   closedAt: string | null;
 }
 
+// Tope de cordura para la apertura: nadie arranca el día con más que esto.
+const MONTO_MAXIMO = 100_000_000;
+
 export default function CajaPage() {
   const toast = useToast();
   const [caja, setCaja] = useState<Caja | null>(null);
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAbrir, setShowAbrir] = useState(false);
-  const [montoInicial, setMontoInicial] = useState(0);
+  // Texto, no número: un 0 numérico se pinta solo y no se puede borrar.
+  const [montoInicial, setMontoInicial] = useState("");
   const [showCerrar, setShowCerrar] = useState(false);
   const [historial, setHistorial] = useState<Caja[]>([]);
   const [showHistorial, setShowHistorial] = useState(false);
@@ -65,14 +70,31 @@ export default function CajaPage() {
   useEffect(() => { fetchCaja() }, [fetchCaja]);
 
   const handleAbrir = async () => {
-    await fetch("/api/caja", {
+    const monto = aNumero(montoInicial);
+    if (Number.isNaN(monto) || monto < 0) {
+      toast("El monto inicial no es válido", "error");
+      return;
+    }
+    if (monto > MONTO_MAXIMO) {
+      toast("Revisá el monto: parece demasiado alto", "error");
+      return;
+    }
+
+    const res = await fetch("/api/caja", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ montoInicial }),
+      body: JSON.stringify({ montoInicial: monto }),
     });
+    // Antes se avisaba "Caja abierta" aunque el servidor hubiera rechazado.
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error ?? "No se pudo abrir la caja", "error");
+      return;
+    }
+
     toast("Caja abierta");
     setShowAbrir(false);
-    setMontoInicial(0);
+    setMontoInicial("");
     fetchCaja();
   };
 
@@ -169,7 +191,7 @@ export default function CajaPage() {
           <p style={{ fontSize: 13, color: "var(--color-text-3)", marginBottom: 20 }}>
             Abrí la caja para comenzar a registrar el día.
           </p>
-          <button className="btn btn-p" onClick={() => setShowAbrir(true)}>Abrir caja</button>
+          <button className="btn btn-p" onClick={() => { setMontoInicial(""); setShowAbrir(true) }}>Abrir caja</button>
         </div>
 
         <Modal open={showAbrir} onClose={() => setShowAbrir(false)} title="Abrir caja del día"
@@ -179,8 +201,8 @@ export default function CajaPage() {
           </>}
         >
           <div className="form-group">
-            <label>Monto inicial en caja ($)</label>
-            <input type="number" value={montoInicial} onChange={(e) => setMontoInicial(Number(e.target.value))} placeholder="0" />
+            <label htmlFor="monto-inicial">Monto inicial en caja ($)</label>
+            <InputNumero id="monto-inicial" value={montoInicial} onChange={setMontoInicial} placeholder="0" maxDigitos={9} />
             <span style={{ fontSize: 12, color: "var(--color-text-3)", marginTop: 4 }}>
               Efectivo con el que se inicia el día.
             </span>

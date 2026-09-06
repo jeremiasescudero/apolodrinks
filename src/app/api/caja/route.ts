@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar } from "@/lib/validar";
+import { aDiaUTC, esFechaValida, hoyEnNegocio } from "@/lib/fecha";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -10,9 +12,10 @@ export async function GET(req: NextRequest) {
   const fecha = searchParams.get("fecha");
 
   if (fecha) {
-    const [y, m, d] = fecha.split("-").map(Number);
-    const day = new Date(y, m - 1, d);
-    const caja = await prisma.caja.findUnique({ where: { fecha: day } });
+    if (!esFechaValida(fecha)) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+    const caja = await prisma.caja.findUnique({ where: { fecha: aDiaUTC(fecha) } });
     return NextResponse.json(caja);
   }
 
@@ -28,8 +31,15 @@ export async function POST(req: NextRequest) {
   if (bloqueo) return bloqueo;
 
   const body = await req.json();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+
+  // Esta ruta no validaba nada: aceptaba texto, negativos o un número absurdo.
+  const error = validar(body, {
+    montoInicial: { tipo: "number", min: 0, max: 100_000_000 },
+  });
+  if (error) return error;
+
+  // El día lo decide el negocio, no el reloj del servidor: en Vercel corre en UTC.
+  const today = aDiaUTC(hoyEnNegocio());
 
   const existing = await prisma.caja.findUnique({ where: { fecha: today } });
   if (existing) {
@@ -39,7 +49,7 @@ export async function POST(req: NextRequest) {
   const caja = await prisma.caja.create({
     data: {
       fecha: today,
-      montoInicial: body.montoInicial ?? 0,
+      montoInicial: Number(body.montoInicial ?? 0),
       estado: "ABIERTA",
     },
   });
