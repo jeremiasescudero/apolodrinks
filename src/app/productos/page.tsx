@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { CATEGORIAS, REDONDEOS } from "@/lib/constants";
+import { REDONDEOS } from "@/lib/constants";
 import { formatPrecio, formatPrecioConSigno, ganancia, stockStatus } from "@/lib/utils";
 
 interface Producto {
@@ -24,7 +24,14 @@ interface Componente {
   producto: { id: number; nombre: string; categoria: string; stock: number };
 }
 
-const EMPTY_FORM = { nombre: "", categoria: "Cervezas", precio: 0, costo: 0, stock: 0, stockMinimo: 0, esPromo: false };
+interface Categoria {
+  id: number;
+  nombre: string;
+  orden: number;
+  productos: number;
+}
+
+const EMPTY_FORM = { nombre: "", categoria: "", precio: 0, costo: 0, stock: 0, stockMinimo: 0, esPromo: false };
 
 export default function ProductosPage() {
   const toast = useToast();
@@ -36,6 +43,12 @@ export default function ProductosPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [showCategorias, setShowCategorias] = useState(false);
+  const [catNueva, setCatNueva] = useState("");
+  const [catEditando, setCatEditando] = useState<{ id: number; nombre: string } | null>(null);
+  const [catBorrar, setCatBorrar] = useState<Categoria | null>(null);
 
   const [componentes, setComponentes] = useState<Componente[]>([]);
   const [compSearch, setCompSearch] = useState("");
@@ -60,7 +73,15 @@ export default function ProductosPage() {
     setLoading(false);
   }, [catFilter, search]);
 
+  // Sin setState sincrónico acá adentro: el estado se toca recién después del
+  // await, que es lo que evita el aviso de renders en cascada.
+  const fetchCategorias = useCallback(async () => {
+    const res = await fetch("/api/categorias");
+    if (res.ok) setCategorias(await res.json());
+  }, []);
+
   useEffect(() => { fetchProductos() }, [fetchProductos]);
+  useEffect(() => { fetchCategorias() }, [fetchCategorias]);
 
   useEffect(() => {
     if (!compSearch || compSearch.length < 2) { setCompResults([]); return; }
@@ -120,6 +141,59 @@ export default function ProductosPage() {
     fetchProductos();
   };
 
+  const crearCategoria = async () => {
+    const nombre = catNueva.trim();
+    if (!nombre) return;
+    const res = await fetch("/api/categorias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo crear la categoría", "error");
+      return;
+    }
+    toast(`Categoría "${nombre}" creada`);
+    setCatNueva("");
+    fetchCategorias();
+  };
+
+  const renombrarCategoria = async () => {
+    if (!catEditando) return;
+    const nombre = catEditando.nombre.trim();
+    if (!nombre) return;
+    const res = await fetch(`/api/categorias/${catEditando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo renombrar", "error");
+      return;
+    }
+    const movidos = data.productosMovidos ?? 0;
+    toast(movidos > 0 ? `Renombrada. ${movidos} producto${movidos === 1 ? "" : "s"} actualizado${movidos === 1 ? "" : "s"}` : "Categoría renombrada");
+    setCatEditando(null);
+    fetchCategorias();
+    fetchProductos();
+  };
+
+  const borrarCategoria = async () => {
+    if (!catBorrar) return;
+    const res = await fetch(`/api/categorias/${catBorrar.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo borrar", "error");
+      setCatBorrar(null);
+      return;
+    }
+    toast(`Categoría "${catBorrar.nombre}" eliminada`);
+    setCatBorrar(null);
+    fetchCategorias();
+  };
+
   const handlePreciosUpdate = async () => {
     await fetch("/api/precios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria: precioCat, porcentaje, redondeo }) });
     toast(`Precios de ${precioCat} actualizados`);
@@ -172,11 +246,18 @@ export default function ProductosPage() {
           <input type="text" placeholder="Buscar producto..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-accent" onClick={() => { setPrecioCat(catFilter !== "Todos" ? catFilter : "Cervezas"); setShowPrecios(true) }}>
+          <button className="btn btn-o" onClick={() => { setCatEditando(null); setCatNueva(""); setShowCategorias(true) }}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <line x1="6" y1="4" x2="14" y2="4" /><line x1="6" y1="8" x2="14" y2="8" /><line x1="6" y1="12" x2="14" y2="12" />
+              <circle cx="2.5" cy="4" r="1" /><circle cx="2.5" cy="8" r="1" /><circle cx="2.5" cy="12" r="1" />
+            </svg>
+            Categorías
+          </button>
+          <button className="btn btn-accent" onClick={() => { setPrecioCat(catFilter !== "Todos" ? catFilter : categorias[0]?.nombre ?? ""); setShowPrecios(true) }}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 2v12M5 5l3-3 3 3M5 11l3 3 3-3" /></svg>
             Actualizar precios
           </button>
-          <button className="btn btn-p" onClick={() => { setForm(EMPTY_FORM); setEditingId(null); setComponentes([]); setShowForm(true) }}>
+          <button className="btn btn-p" onClick={() => { setForm({ ...EMPTY_FORM, categoria: categorias[0]?.nombre ?? "" }); setEditingId(null); setComponentes([]); setShowForm(true) }}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></svg>
             Agregar
           </button>
@@ -185,7 +266,7 @@ export default function ProductosPage() {
 
       {/* Category Filters */}
       <div className="filter-bar" style={{ overflowX: "auto", flexWrap: "nowrap", paddingBottom: 4 }}>
-        {["Todos", ...CATEGORIAS].map((cat) => (
+        {["Todos", ...categorias.map((c) => c.nombre)].map((cat) => (
           <button key={cat} onClick={() => setCatFilter(cat)} className={`fchip ${catFilter === cat ? "active" : ""}`}>
             {cat}
           </button>
@@ -274,7 +355,7 @@ export default function ProductosPage() {
           <div className="form-group" style={{ maxWidth: 180 }}>
             <label>Categoría</label>
             <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-              {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
             </select>
           </div>
         </div>
@@ -469,6 +550,91 @@ export default function ProductosPage() {
       </Modal>
 
       {/* Modal Actualizar Precios */}
+      {/* Categorías */}
+      <Modal open={showCategorias} onClose={() => { setShowCategorias(false); setCatEditando(null) }} title="Categorías de productos"
+        footer={<button className="btn btn-o" onClick={() => { setShowCategorias(false); setCatEditando(null) }}>Cerrar</button>}
+      >
+        <div className="cat-alta">
+          <input
+            type="text"
+            value={catNueva}
+            onChange={(e) => setCatNueva(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); crearCategoria() } }}
+            placeholder="Nueva categoría (ej: Whisky)"
+            maxLength={40}
+          />
+          <button className="btn btn-p" onClick={crearCategoria} disabled={!catNueva.trim()}>Agregar</button>
+        </div>
+
+        <div className="cat-lista">
+          {categorias.length === 0 ? (
+            <p className="empty-msg">Todavía no hay categorías cargadas.</p>
+          ) : (
+            categorias.map((c) => (
+              <div key={c.id} className="cat-item">
+                {catEditando?.id === c.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={catEditando.nombre}
+                      onChange={(e) => setCatEditando({ id: c.id, nombre: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); renombrarCategoria() }
+                        if (e.key === "Escape") setCatEditando(null);
+                      }}
+                      maxLength={40}
+                      autoFocus
+                    />
+                    <button className="act-btn" onClick={renombrarCategoria} title="Guardar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 8 6.5 11.5 13 4.5" /></svg>
+                    </button>
+                    <button className="act-btn" onClick={() => setCatEditando(null)} title="Cancelar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></svg>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="cat-nombre">{c.nombre}</span>
+                    <span className="cat-uso">{c.productos === 0 ? "sin productos" : `${c.productos} producto${c.productos === 1 ? "" : "s"}`}</span>
+                    <button className="act-btn" onClick={() => setCatEditando({ id: c.id, nombre: c.nombre })} title="Renombrar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" /></svg>
+                    </button>
+                    <button
+                      className="act-btn del"
+                      onClick={() => setCatBorrar(c)}
+                      disabled={c.productos > 0}
+                      title={c.productos > 0 ? "Tiene productos: primero moverlos a otra categoría" : "Eliminar"}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" /></svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <p className="cat-nota">
+          Al renombrar una categoría, los productos que la usan se actualizan solos. Una
+          categoría con productos no se puede borrar: primero hay que moverlos.
+        </p>
+      </Modal>
+
+      {/* Confirmar borrado de categoría */}
+      <Modal
+        open={catBorrar !== null}
+        onClose={() => setCatBorrar(null)}
+        title="Eliminar categoría"
+        footer={<>
+          <button className="btn btn-o" onClick={() => setCatBorrar(null)}>Cancelar</button>
+          <button className="btn btn-danger" onClick={borrarCategoria}>Eliminar</button>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: "var(--color-text-2)" }}>
+          ¿Eliminar la categoría <strong>{catBorrar?.nombre}</strong>? No tiene productos asociados.
+        </p>
+      </Modal>
+
       <Modal open={showPrecios} onClose={() => setShowPrecios(false)} title="Actualizar precios por categoría" wide
         footer={<>
           <button className="btn btn-o" onClick={() => setShowPrecios(false)}>Cancelar</button>
@@ -479,7 +645,7 @@ export default function ProductosPage() {
           <div className="form-group">
             <label>Categoría</label>
             <select value={precioCat} onChange={(e) => setPrecioCat(e.target.value)}>
-              {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
             </select>
           </div>
           <div className="form-group" style={{ maxWidth: 120 }}>

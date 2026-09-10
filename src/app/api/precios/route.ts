@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
 import { validar } from "@/lib/validar";
-import { CATEGORIAS } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -10,8 +9,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
+  // La lista de categorías ahora vive en la base, no en una constante.
+  const categorias = (await prisma.categoria.findMany({ select: { nombre: true } })).map((c) => c.nombre);
+
   const error = validar(body, {
-    categoria: { tipo: "enum", valores: CATEGORIAS, obligatorio: true },
+    categoria: { tipo: "enum", valores: categorias, obligatorio: true },
     porcentaje: { tipo: "number", min: -100, max: 1000, obligatorio: true },
     redondeo: { tipo: "number", min: 0 },
   });

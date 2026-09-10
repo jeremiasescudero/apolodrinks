@@ -207,11 +207,21 @@ async function main() {
   await prisma.encargo.deleteMany();
   await prisma.promoComponente.deleteMany();
   await prisma.producto.deleteMany();
+  await prisma.categoria.deleteMany();
   await prisma.proveedor.deleteMany();
   await prisma.cliente.deleteMany();
 
   await prisma.producto.createMany({ data: productos });
   console.log(`  ${productos.length} productos creados`);
+
+  // La lista de categorías sale de los propios productos, en el orden en que
+  // aparecen. Sin esto una instalación nueva arranca sin categorías y no se
+  // puede cargar ningún producto desde la pantalla.
+  const nombresCategorias = [...new Set(productos.map((p) => p.categoria))];
+  await prisma.categoria.createMany({
+    data: nombresCategorias.map((nombre, i) => ({ nombre, orden: i + 1 })),
+  });
+  console.log(`  ${nombresCategorias.length} categorías creadas`);
 
   await prisma.proveedor.createMany({ data: proveedores });
   console.log(`  ${proveedores.length} proveedores creados`);

@@ -10,6 +10,17 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/// Lista maestra de categorías de productos, editable desde la app.
+/// Producto.categoria guarda el nombre, no el id: renombrar actualiza los
+/// productos en la misma transacción (ver PUT /api/categorias/[id]).
+model Categoria {
+  id        Int      @id @default(autoincrement())
+  nombre    String   @unique
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Producto {
   id          Int      @id @default(autoincrement())
   nombre      String
