@@ -51,19 +51,19 @@ export default function CajaPage() {
   const [detailCaja, setDetailCaja] = useState<Caja | null>(null);
   const [detailVentas, setDetailVentas] = useState<Venta[]>([]);
 
-  const todayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
-
   const fetchCaja = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/caja?fecha=${todayStr()}`);
+    // El turno en curso se pide por estado, no por fecha: a las 00:00 la caja
+    // abierta anoche sigue siendo la misma y no tiene que desaparecer.
+    const res = await fetch("/api/caja?abierta=1");
     const data = await res.json();
     setCaja(data);
     if (data) {
-      const vRes = await fetch(`/api/ventas?fecha=${data.fecha.split("T")[0]}`);
+      // Sus ventas salen del rango del turno, no del día del calendario.
+      const vRes = await fetch(`/api/ventas?cajaId=${data.id}`);
       setVentas(await vRes.json());
+    } else {
+      setVentas([]);
     }
     setLoading(false);
   }, []);
@@ -118,7 +118,7 @@ export default function CajaPage() {
   };
 
   const openDetail = async (c: Caja) => {
-    const vRes = await fetch(`/api/ventas?fecha=${c.fecha.split("T")[0]}`);
+    const vRes = await fetch(`/api/ventas?cajaId=${c.id}`);
     setDetailVentas(await vRes.json());
     setDetailCaja(c);
     setShowHistorial(false);
@@ -211,7 +211,7 @@ export default function CajaPage() {
           <button className="btn btn-p" onClick={() => { setMontoInicial(""); setShowAbrir(true) }}>Abrir caja</button>
         </div>
 
-        <Modal open={showAbrir} onClose={() => setShowAbrir(false)} title="Abrir caja del día"
+        <Modal open={showAbrir} onClose={() => setShowAbrir(false)} title="Abrir caja"
           footer={<>
             <button className="btn btn-o" onClick={() => setShowAbrir(false)}>Cancelar</button>
             <button className="btn btn-p" onClick={handleAbrir}>Abrir caja</button>
@@ -244,8 +244,11 @@ export default function CajaPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Badge variant={isClosed ? "muted" : "success"}>{isClosed ? "Cerrada" : "Abierta"}</Badge>
           <span style={{ fontSize: 13, color: "var(--color-text-2)" }}>
-            {formatFecha(caja.fecha)} — Apertura: {formatHora(caja.openedAt)}
-            {caja.closedAt && ` — Cierre: ${formatHora(caja.closedAt)}`}
+            Abierta el {formatFecha(caja.openedAt)} a las {formatHora(caja.openedAt)}
+            {caja.closedAt && ` — Cerrada el ${formatFecha(caja.closedAt)} a las ${formatHora(caja.closedAt)}`}
+            {!caja.closedAt && formatFecha(caja.openedAt) !== formatFecha(new Date().toISOString()) && (
+              <strong style={{ color: "var(--color-warning)" }}> · sigue abierta desde ayer</strong>
+            )}
           </span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -272,7 +275,7 @@ export default function CajaPage() {
           <span className="kpi-value">{formatPrecio(apertura)}</span>
         </div>
         <div className="kpi-card">
-          <span className="kpi-label">Ventas del día</span>
+          <span className="kpi-label">Ventas de la caja</span>
           <span className="kpi-value" style={{ color: "var(--color-success)" }}>{cantVentas}</span>
         </div>
         <div className="kpi-card">
@@ -280,7 +283,7 @@ export default function CajaPage() {
           <span className="kpi-value" style={{ color: "var(--color-success)" }}>{formatPrecio(totalVentas)}</span>
         </div>
         <div className="kpi-card">
-          <span className="kpi-label">Ganancia del día</span>
+          <span className="kpi-label">Ganancia de la caja</span>
           <span className="kpi-value" style={{ color: unidadesConCosto === 0 ? "var(--color-text-3)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
             {unidadesConCosto === 0 ? "—" : formatPrecioConSigno(ganancia)}
           </span>
@@ -320,10 +323,10 @@ export default function CajaPage() {
         </div>
       )}
 
-      {/* Ventas del día */}
+      {/* Ventas de la caja */}
       <div className="card">
         <div style={{ padding: "12px 16px 0", fontSize: 13, fontWeight: 600, color: "var(--color-text-1)" }}>
-          Ventas del día
+          Ventas de esta caja
         </div>
         <div className="tbl-wrap">
           <table className="tbl-cards">
@@ -358,14 +361,14 @@ export default function CajaPage() {
       </div>
 
       {/* Modal Cerrar Caja */}
-      <Modal open={showCerrar} onClose={() => setShowCerrar(false)} title="Cerrar caja del día"
+      <Modal open={showCerrar} onClose={() => setShowCerrar(false)} title="Cerrar caja"
         footer={<>
           <button className="btn btn-o" onClick={() => setShowCerrar(false)}>Cancelar</button>
           <button className="btn btn-danger" onClick={handleCerrar}>Cerrar caja</button>
         </>}
       >
         <div style={{ fontSize: 13, color: "var(--color-text-2)", marginBottom: 16 }}>
-          Resumen del día antes de cerrar:
+          Resumen de la caja antes de cerrar:
         </div>
         <div className="grid-mobile-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16 }}>
           <div>
@@ -386,7 +389,7 @@ export default function CajaPage() {
           </div>
         </div>
         <div style={{ padding: "12px 14px", background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 16, borderLeft: `3px solid ${unidadesConCosto === 0 ? "var(--color-border-2)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)"}` }}>
-          <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: ".4px" }}>Ganancia del día</div>
+          <div style={{ fontSize: 11, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: ".4px" }}>Ganancia de la caja</div>
           <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, marginTop: 2, color: unidadesConCosto === 0 ? "var(--color-text-3)" : ganancia < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
             {unidadesConCosto === 0 ? "—" : formatPrecioConSigno(ganancia)}
           </div>

@@ -24,7 +24,26 @@ export async function GET(req: NextRequest) {
   if (search) {
     where.numero = { contains: search, mode: "insensitive" };
   }
-  if (fecha) {
+  // Ventas de un turno de caja: se toman por el rango real entre la apertura y
+  // el cierre, no por fecha del calendario. Un turno puede cruzar la medianoche
+  // y esas ventas tienen que quedar en el cierre al que pertenecen.
+  const cajaId = searchParams.get("cajaId");
+  if (cajaId) {
+    const caja = await prisma.caja.findUnique({ where: { id: Number(cajaId) } });
+    if (!caja) return NextResponse.json({ error: "Caja no encontrada" }, { status: 404 });
+
+    // Un turno termina cuando se cierra o cuando arranca el siguiente, lo que
+    // pase primero. Sin ese tope, un turno que quedó sin cerrar se llevaría
+    // todas las ventas posteriores, incluidas las de los turnos que vinieron
+    // después.
+    const siguiente = await prisma.caja.findFirst({
+      where: { openedAt: { gt: caja.openedAt } },
+      orderBy: { openedAt: "asc" },
+      select: { openedAt: true },
+    });
+    const hasta = caja.closedAt ?? siguiente?.openedAt ?? null;
+    where.createdAt = { gte: caja.openedAt, ...(hasta ? { lt: hasta } : {}) };
+  } else if (fecha) {
     if (!esFechaValida(fecha)) {
       return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
     }

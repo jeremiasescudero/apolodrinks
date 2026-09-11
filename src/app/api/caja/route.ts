@@ -10,12 +10,23 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const fecha = searchParams.get("fecha");
+  const abierta = searchParams.get("abierta");
+
+  // La caja en curso se busca por estado, no por fecha: un turno que empezó
+  // anoche sigue siendo el turno en curso después de las 12.
+  if (abierta) {
+    const caja = await prisma.caja.findFirst({
+      where: { estado: "ABIERTA" },
+      orderBy: { openedAt: "desc" },
+    });
+    return NextResponse.json(caja);
+  }
 
   if (fecha) {
     if (!esFechaValida(fecha)) {
       return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
     }
-    const caja = await prisma.caja.findUnique({ where: { fecha: aDiaUTC(fecha) } });
+    const caja = await prisma.caja.findFirst({ where: { fecha: aDiaUTC(fecha) } });
     return NextResponse.json(caja);
   }
 
@@ -38,13 +49,15 @@ export async function POST(req: NextRequest) {
   });
   if (error) return error;
 
-  // El día lo decide el negocio, no el reloj del servidor: en Vercel corre en UTC.
-  const today = aDiaUTC(hoyEnNegocio());
-
-  const existing = await prisma.caja.findUnique({ where: { fecha: today } });
-  if (existing) {
-    return NextResponse.json({ error: "Ya existe una caja abierta para hoy" }, { status: 400 });
+  // Sólo puede haber un turno abierto a la vez, sin importar la fecha: si el
+  // turno de anoche sigue abierto, hay que cerrarlo a mano antes de abrir otro.
+  const abierta = await prisma.caja.findFirst({ where: { estado: "ABIERTA" } });
+  if (abierta) {
+    return NextResponse.json({ error: "Ya hay una caja abierta. Cerrala antes de abrir otra." }, { status: 400 });
   }
+
+  // La fecha es sólo la etiqueta del día en que se abre el turno.
+  const today = aDiaUTC(hoyEnNegocio());
 
   const caja = await prisma.caja.create({
     data: {

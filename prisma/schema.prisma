@@ -130,15 +130,22 @@ model VentaItem {
   costoUnitario  Int      @default(0)
 }
 
+/// Una caja es un turno de trabajo, no un día del calendario: puede abrirse a
+/// la tarde y cerrarse de madrugada. Por eso `fecha` es sólo la etiqueta del día
+/// en que se abrió y ya no es única — lo que identifica al turno es el rango
+/// entre openedAt y closedAt. El cierre siempre es a mano.
 model Caja {
   id           Int       @id @default(autoincrement())
-  fecha        DateTime  @unique
+  fecha        DateTime
   montoInicial Int       @default(0)
   estado       String    @default("ABIERTA")
   openedAt     DateTime  @default(now())
   closedAt     DateTime?
 
   movimientos CajaMovimiento[]
+
+  @@index([fecha])
+  @@index([estado])
 }
 
 model CajaMovimiento {
