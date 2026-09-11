@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero, { aNumero, aTexto } from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { REDONDEOS } from "@/lib/constants";
 import { formatPrecio, formatPrecioConSigno, ganancia, stockStatus } from "@/lib/utils";
@@ -31,7 +33,7 @@ interface Categoria {
   productos: number;
 }
 
-const EMPTY_FORM = { nombre: "", categoria: "", precio: 0, costo: 0, stock: 0, stockMinimo: 0, esPromo: false };
+const EMPTY_FORM = { nombre: "", categoria: "", precio: "", costo: "", stock: "", stockMinimo: "", esPromo: false };
 
 export default function ProductosPage() {
   const toast = useToast();
@@ -56,7 +58,7 @@ export default function ProductosPage() {
 
   const [showPrecios, setShowPrecios] = useState(false);
   const [precioCat, setPrecioCat] = useState("Cervezas");
-  const [porcentaje, setPorcentaje] = useState(10);
+  const [porcentaje, setPorcentaje] = useState("10");
   const [redondeo, setRedondeo] = useState(0);
   const [precioProducts, setPrecioProducts] = useState<Producto[]>([]);
 
@@ -95,9 +97,35 @@ export default function ProductosPage() {
   }, [compSearch, componentes, editingId]);
 
   const handleSave = async () => {
+    // El formulario guarda texto para que los campos puedan quedar vacíos;
+    // a la API van números.
+    const numeros = {
+      precio: aNumero(form.precio),
+      costo: aNumero(form.costo),
+      stock: aNumero(form.stock),
+      stockMinimo: aNumero(form.stockMinimo),
+    };
+    if (Object.values(numeros).some((n) => Number.isNaN(n))) {
+      toast("Revisá los valores numéricos", "error");
+      return;
+    }
+    if (!form.nombre.trim()) {
+      toast("Falta el nombre del producto", "error");
+      return;
+    }
+    if (!form.categoria) {
+      toast("Elegí una categoría", "error");
+      return;
+    }
+
     const url = editingId ? `/api/productos/${editingId}` : "/api/productos";
     const method = editingId ? "PUT" : "POST";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, ...numeros }) });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error ?? "No se pudo guardar el producto", "error");
+      return;
+    }
     const saved = await res.json();
     const prodId = editingId || saved.id;
 
@@ -118,7 +146,7 @@ export default function ProductosPage() {
   };
 
   const handleEdit = async (p: Producto) => {
-    setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stockMinimo: p.stockMinimo, esPromo: p.esPromo });
+    setForm({ nombre: p.nombre, categoria: p.categoria, precio: aTexto(p.precio), costo: aTexto(p.costo), stock: aTexto(p.stock), stockMinimo: aTexto(p.stockMinimo), esPromo: p.esPromo });
     setEditingId(p.id);
     setComponentes([]);
     setCompSearch("");
@@ -195,7 +223,7 @@ export default function ProductosPage() {
   };
 
   const handlePreciosUpdate = async () => {
-    await fetch("/api/precios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria: precioCat, porcentaje, redondeo }) });
+    await fetch("/api/precios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria: precioCat, porcentaje: aNumero(porcentaje), redondeo }) });
     toast(`Precios de ${precioCat} actualizados`);
     setShowPrecios(false);
     fetchProductos();
@@ -207,7 +235,7 @@ export default function ProductosPage() {
   }, [showPrecios, precioCat]);
 
   const previewPrecios = precioProducts.map((p) => {
-    let np = Math.round(p.precio * (1 + porcentaje / 100));
+    let np = Math.round(p.precio * (1 + aNumero(porcentaje) / 100));
     if (redondeo > 0) np = Math.round(np / redondeo) * redondeo;
     return { ...p, nuevoPrecio: np, diff: np - p.precio };
   });
@@ -291,7 +319,7 @@ export default function ProductosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={6} columnas={8} />
               ) : productos.length === 0 ? (
                 <tr><td colSpan={8} className="empty-msg">No se encontraron productos</td></tr>
               ) : (
@@ -362,21 +390,21 @@ export default function ProductosPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Precio de venta ($)</label>
-            <input type="number" value={form.precio} onChange={(e) => setForm({ ...form, precio: Number(e.target.value) })} />
+            <InputNumero value={form.precio} onChange={(v) => setForm({ ...form, precio: v })} placeholder="0" maxDigitos={9} />
           </div>
           <div className="form-group">
             <label>Precio de costo ($)</label>
-            <input type="number" value={form.costo} onChange={(e) => setForm({ ...form, costo: Number(e.target.value) })} />
+            <InputNumero value={form.costo} onChange={(v) => setForm({ ...form, costo: v })} placeholder="0" maxDigitos={9} />
           </div>
           {!form.esPromo && (
             <>
               <div className="form-group">
                 <label>Stock</label>
-                <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+                <InputNumero value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} placeholder="0" maxDigitos={6} />
               </div>
               <div className="form-group">
                 <label>Stock mínimo</label>
-                <input type="number" value={form.stockMinimo} onChange={(e) => setForm({ ...form, stockMinimo: Number(e.target.value) })} />
+                <InputNumero value={form.stockMinimo} onChange={(v) => setForm({ ...form, stockMinimo: v })} placeholder="0" maxDigitos={6} />
               </div>
             </>
           )}
@@ -384,7 +412,7 @@ export default function ProductosPage() {
 
         {/* La cuenta a la vista mientras tipea: es el dato que pidió el cliente. */}
         {(() => {
-          const g = ganancia(form.precio, form.costo);
+          const g = ganancia(aNumero(form.precio), aNumero(form.costo));
           if (!g) {
             return <p className="gan-hint td-m">Cargá el precio de costo para ver cuánto te deja este producto.</p>;
           }
@@ -406,7 +434,7 @@ export default function ProductosPage() {
             checked={form.esPromo}
             onChange={(e) => {
               const checked = e.target.checked;
-              setForm({ ...form, esPromo: checked, stock: checked ? 0 : form.stock, stockMinimo: checked ? 0 : form.stockMinimo });
+              setForm({ ...form, esPromo: checked, stock: checked ? "" : form.stock, stockMinimo: checked ? "" : form.stockMinimo });
               if (!checked) setComponentes([]);
             }}
             style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
@@ -446,16 +474,16 @@ export default function ProductosPage() {
                           alignItems: "center", justifyContent: "center", fontSize: 14, color: "var(--color-text-2)",
                         }}
                       >-</button>
-                      <input
-                        type="number"
-                        value={c.cantidad}
-                        onChange={(e) => updateCompCantidad(c.productoId, Number(e.target.value))}
+                      <InputNumero
+                        value={String(c.cantidad)}
+                        onChange={(v) => updateCompCantidad(c.productoId, Math.max(1, Number(v || 1)))}
+                        maxDigitos={3}
+                        aria-label={`Cantidad de ${c.producto.nombre}`}
                         style={{
                           width: 44, textAlign: "center", padding: "2px 4px", borderRadius: 6,
                           border: "1px solid var(--color-border)", background: "var(--color-surface-1)",
                           fontSize: 13, color: "var(--color-text-1)",
                         }}
-                        min={1}
                       />
                       <button
                         type="button"
@@ -650,7 +678,7 @@ export default function ProductosPage() {
           </div>
           <div className="form-group" style={{ maxWidth: 120 }}>
             <label>Porcentaje</label>
-            <input type="number" value={porcentaje} onChange={(e) => setPorcentaje(Number(e.target.value))} />
+            <InputNumero value={porcentaje} onChange={setPorcentaje} permiteNegativo placeholder="10" maxDigitos={4} />
           </div>
           <div className="form-group" style={{ maxWidth: 140 }}>
             <label>Redondear a</label>
@@ -681,7 +709,7 @@ export default function ProductosPage() {
                       <td className="td-b">{p.nombre}</td>
                       <td className="price-old">{formatPrecio(p.precio)}</td>
                       <td className="price-new">{formatPrecio(p.nuevoPrecio)}</td>
-                      <td className="td-m">{p.diff >= 0 ? "+" : ""}{formatPrecio(p.diff)}</td>
+                      <td className="td-m">{p.diff > 0 ? "+" : ""}{formatPrecioConSigno(p.diff)}</td>
                     </tr>
                   ))}
                 </tbody>

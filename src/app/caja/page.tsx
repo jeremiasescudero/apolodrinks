@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import InputNumero, { aNumero } from "@/components/ui/InputNumero";
+import { Skeleton, SkeletonFilas, SkeletonKpis } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrecio, formatPrecioConSigno } from "@/lib/utils";
 
@@ -166,7 +167,23 @@ export default function CajaPage() {
   };
 
   if (loading) {
-    return <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--color-text-3)" }}>Cargando...</div>;
+    // Misma silueta que la pantalla real: encabezado, cinco indicadores y el
+    // listado de ventas. Así no salta todo de lugar cuando llegan los datos.
+    return (
+      <>
+        <div className="sec-bar">
+          <Skeleton ancho={220} alto={14} />
+          <Skeleton ancho={280} alto={36} radio={8} />
+        </div>
+        <div className="kpi-grid"><SkeletonKpis cantidad={5} /></div>
+        <div className="card">
+          <div className="card-header"><Skeleton ancho={150} alto={13} /></div>
+          <div className="tbl-wrap">
+            <table className="tbl-cards"><tbody><SkeletonFilas filas={4} columnas={6} /></tbody></table>
+          </div>
+        </div>
+      </>
+    );
   }
 
   if (!caja) {

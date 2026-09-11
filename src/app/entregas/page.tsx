@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero, { aNumero, aTexto } from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { ESTADOS_ENCARGO, METODOS_PAGO } from "@/lib/constants";
 import { formatFechaLarga, formatPrecio, mapsLink, todayStr, waLink } from "@/lib/utils";
@@ -37,7 +39,7 @@ const emptyForm = (fecha: string) => ({
   telefono: "",
   direccion: "",
   detalle: "",
-  monto: 0,
+  monto: "",
   metodoPago: "Efectivo" as string,
   notas: "",
   guardarCliente: false,
@@ -115,7 +117,7 @@ export default function EntregasPage() {
       telefono: e.telefono,
       direccion: e.direccion,
       detalle: e.detalle,
-      monto: e.monto,
+      monto: aTexto(e.monto),
       metodoPago: e.metodoPago,
       notas: e.notas,
       guardarCliente: false,
@@ -131,11 +133,18 @@ export default function EntregasPage() {
       toast("Falta el nombre o la dirección", "error");
       return;
     }
+    const monto = aNumero(form.monto);
+    if (Number.isNaN(monto) || monto < 0) {
+      toast("El monto no es válido", "error");
+      return;
+    }
+
     const url = editingId ? `/api/encargos/${editingId}` : "/api/encargos";
     const res = await fetch(url, {
       method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      // El formulario guarda texto; a la API va el número.
+      body: JSON.stringify({ ...form, monto }),
     });
     if (!res.ok) {
       toast("No se pudo guardar el encargo", "error");
@@ -270,7 +279,7 @@ export default function EntregasPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={5} columnas={8} />
               ) : encargos.length === 0 ? (
                 <tr><td colSpan={8} className="empty-msg">No hay encargos cargados para este día</td></tr>
               ) : (
@@ -406,7 +415,7 @@ export default function EntregasPage() {
         <div className="form-row">
           <div className="form-group" style={{ maxWidth: 160 }}>
             <label>Monto a cobrar ($)</label>
-            <input type="number" value={form.monto} onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })} />
+            <InputNumero value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} placeholder="0" maxDigitos={9} />
           </div>
           <div className="form-group" style={{ maxWidth: 160 }}>
             <label>Método de pago</label>

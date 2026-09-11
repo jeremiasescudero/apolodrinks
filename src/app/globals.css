@@ -955,3 +955,42 @@ tfoot tr:hover td { background: var(--color-surface-2) }
 .cat-nombre { flex: 1; font-size: 13px; font-weight: 600 }
 .cat-uso { font-size: 11px; color: var(--color-text-3); white-space: nowrap }
 .cat-nota { margin-top: 12px; font-size: 12px; color: var(--color-text-3); line-height: 1.5 }
+
+/* ===== SKELETONS ===== */
+.sk {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    var(--color-border) 37%,
+    var(--color-surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk-brillo 1.4s ease-in-out infinite;
+}
+@keyframes sk-brillo {
+  0%   { background-position: 100% 50% }
+  100% { background-position: 0 50% }
+}
+.sk-fila td { border-bottom: 1px solid var(--color-border) }
+.sk-fila:hover td { background: none }
+.sk-bloque { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 }
+
+/* Una animación infinita es justo lo que molesta a quien pide menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; background: var(--color-surface-2) }
+}
+
+/* En celular las tablas son tarjetas: las filas fantasma acompañan esa forma. */
+@media (max-width: 768px) {
+  .tbl-cards .sk-fila {
+    display: block;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    background: var(--color-surface);
+  }
+  .tbl-cards .sk-fila td { display: block; padding: 5px 0; border: none }
+  .tbl-cards .sk-fila td::before { display: none }
+}

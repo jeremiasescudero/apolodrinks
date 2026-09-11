@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { METODOS_PAGO } from "@/lib/constants";
 import { formatPrecio } from "@/lib/utils";
@@ -209,7 +211,7 @@ export default function VentasPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={6} columnas={8} />
               ) : ventas.length === 0 ? (
                 <tr><td colSpan={8} className="empty-msg">No hay ventas registradas</td></tr>
               ) : (
@@ -317,12 +319,11 @@ export default function VentasPage() {
                   <tr key={item.productoId}>
                     <td className="td-b">{item.nombre}</td>
                     <td>
-                      <input
-                        type="number"
-                        min={1}
-                        max={item.esPromo ? undefined : item.stock}
-                        value={item.cantidad}
-                        onChange={(e) => updateQty(item.productoId, Number(e.target.value))}
+                      <InputNumero
+                        value={String(item.cantidad)}
+                        onChange={(v) => updateQty(item.productoId, Math.max(1, Number(v || 1)))}
+                        maxDigitos={4}
+                        aria-label={`Cantidad de ${item.nombre}`}
                         style={{ width: 60, padding: "4px 6px", fontSize: 13, border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontFamily: "inherit", textAlign: "center" }}
                       />
                     </td>
