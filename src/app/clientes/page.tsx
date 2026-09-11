@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero, { aNumero, aTexto } from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrecio } from "@/lib/utils";
 
@@ -17,7 +19,7 @@ interface Cliente {
 }
 
 const TIPOS = ["Particular", "Comercio"];
-const EMPTY_FORM = { nombre: "", tipo: "Particular", telefono: "", direccion: "", email: "", saldo: 0 };
+const EMPTY_FORM = { nombre: "", tipo: "Particular", telefono: "", direccion: "", email: "", saldo: "" };
 
 export default function ClientesPage() {
   const toast = useToast();
@@ -47,9 +49,16 @@ export default function ClientesPage() {
   useEffect(() => { fetchClientes() }, [fetchClientes]);
 
   const handleSave = async () => {
+    const saldo = aNumero(form.saldo);
+    if (Number.isNaN(saldo)) {
+      toast("El saldo no es un número válido", "error");
+      return;
+    }
+
     const url = editingId ? `/api/clientes/${editingId}` : "/api/clientes";
     const method = editingId ? "PUT" : "POST";
-    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    // El formulario guarda texto; a la API va el número.
+    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, saldo }) });
     toast(editingId ? "Cliente actualizado" : "Cliente creado");
     setShowForm(false);
     setEditingId(null);
@@ -58,7 +67,7 @@ export default function ClientesPage() {
   };
 
   const handleEdit = (c: Cliente) => {
-    setForm({ nombre: c.nombre, tipo: c.tipo, telefono: c.telefono, direccion: c.direccion, email: c.email, saldo: c.saldo });
+    setForm({ nombre: c.nombre, tipo: c.tipo, telefono: c.telefono, direccion: c.direccion, email: c.email, saldo: aTexto(c.saldo) });
     setEditingId(c.id);
     setShowForm(true);
   };
@@ -126,7 +135,7 @@ export default function ClientesPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={6} columnas={7} />
               ) : clientes.length === 0 ? (
                 <tr><td colSpan={7} className="empty-msg">No se encontraron clientes</td></tr>
               ) : (
@@ -190,7 +199,7 @@ export default function ClientesPage() {
         <div className="form-row">
           <div className="form-group" style={{ maxWidth: 180 }}>
             <label>Saldo ($)</label>
-            <input type="number" value={form.saldo} onChange={(e) => setForm({ ...form, saldo: Number(e.target.value) })} />
+            <InputNumero value={form.saldo} onChange={(v) => setForm({ ...form, saldo: v })} permiteNegativo placeholder="0" />
           </div>
         </div>
       </Modal>

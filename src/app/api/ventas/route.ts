@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { esFechaValida, rangoDelDia } from "@/lib/fecha";
 import { validar } from "@/lib/validar";
 import { METODOS_PAGO } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,10 +24,32 @@ export async function GET(req: NextRequest) {
   if (search) {
     where.numero = { contains: search, mode: "insensitive" };
   }
-  if (fecha) {
-    const [y, m, d] = fecha.split("-").map(Number);
-    const dayStart = new Date(y, m - 1, d);
-    const dayEnd = new Date(y, m - 1, d + 1);
+  // Ventas de un turno de caja: se toman por el rango real entre la apertura y
+  // el cierre, no por fecha del calendario. Un turno puede cruzar la medianoche
+  // y esas ventas tienen que quedar en el cierre al que pertenecen.
+  const cajaId = searchParams.get("cajaId");
+  if (cajaId) {
+    const caja = await prisma.caja.findUnique({ where: { id: Number(cajaId) } });
+    if (!caja) return NextResponse.json({ error: "Caja no encontrada" }, { status: 404 });
+
+    // Un turno termina cuando se cierra o cuando arranca el siguiente, lo que
+    // pase primero. Sin ese tope, un turno que quedó sin cerrar se llevaría
+    // todas las ventas posteriores, incluidas las de los turnos que vinieron
+    // después.
+    const siguiente = await prisma.caja.findFirst({
+      where: { openedAt: { gt: caja.openedAt } },
+      orderBy: { openedAt: "asc" },
+      select: { openedAt: true },
+    });
+    const hasta = caja.closedAt ?? siguiente?.openedAt ?? null;
+    where.createdAt = { gte: caja.openedAt, ...(hasta ? { lt: hasta } : {}) };
+  } else if (fecha) {
+    if (!esFechaValida(fecha)) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+    // El día del negocio, no el del servidor: una venta de las 22:00 en Córdoba
+    // caía en el día siguiente y quedaba fuera del cierre de caja.
+    const { desde: dayStart, hasta: dayEnd } = rangoDelDia(fecha);
     where.createdAt = { gte: dayStart, lt: dayEnd };
   } else if (desde) {
     where.createdAt = {
@@ -79,6 +102,15 @@ export async function POST(req: NextRequest) {
   }
 
   const venta = await prisma.$transaction(async (tx) => {
+    // El costo se lee del servidor, nunca de lo que mande el navegador, y se
+    // congela en la venta: así la ganancia de un cierre ya hecho no cambia
+    // aunque después se actualice el costo del producto.
+    const productos = await tx.producto.findMany({
+      where: { id: { in: items.map((i) => i.productoId) } },
+      select: { id: true, costo: true },
+    });
+    const costoPorProducto = new Map(productos.map((p) => [p.id, p.costo]));
+
     const v = await tx.venta.create({
       data: {
         numero,
@@ -93,6 +125,7 @@ export async function POST(req: NextRequest) {
             productoId: i.productoId,
             cantidad: i.cantidad,
             precioUnitario: i.precioUnitario,
+            costoUnitario: costoPorProducto.get(i.productoId) ?? 0,
           })),
         },
       },

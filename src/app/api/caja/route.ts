@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { exigirSesion } from "@/lib/guard";
+import { validar } from "@/lib/validar";
+import { aDiaUTC, esFechaValida, hoyEnNegocio } from "@/lib/fecha";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -8,11 +10,23 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const fecha = searchParams.get("fecha");
+  const abierta = searchParams.get("abierta");
+
+  // La caja en curso se busca por estado, no por fecha: un turno que empezó
+  // anoche sigue siendo el turno en curso después de las 12.
+  if (abierta) {
+    const caja = await prisma.caja.findFirst({
+      where: { estado: "ABIERTA" },
+      orderBy: { openedAt: "desc" },
+    });
+    return NextResponse.json(caja);
+  }
 
   if (fecha) {
-    const [y, m, d] = fecha.split("-").map(Number);
-    const day = new Date(y, m - 1, d);
-    const caja = await prisma.caja.findUnique({ where: { fecha: day } });
+    if (!esFechaValida(fecha)) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+    const caja = await prisma.caja.findFirst({ where: { fecha: aDiaUTC(fecha) } });
     return NextResponse.json(caja);
   }
 
@@ -28,18 +42,27 @@ export async function POST(req: NextRequest) {
   if (bloqueo) return bloqueo;
 
   const body = await req.json();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  const existing = await prisma.caja.findUnique({ where: { fecha: today } });
-  if (existing) {
-    return NextResponse.json({ error: "Ya existe una caja abierta para hoy" }, { status: 400 });
+  // Esta ruta no validaba nada: aceptaba texto, negativos o un número absurdo.
+  const error = validar(body, {
+    montoInicial: { tipo: "number", min: 0, max: 100_000_000 },
+  });
+  if (error) return error;
+
+  // Sólo puede haber un turno abierto a la vez, sin importar la fecha: si el
+  // turno de anoche sigue abierto, hay que cerrarlo a mano antes de abrir otro.
+  const abierta = await prisma.caja.findFirst({ where: { estado: "ABIERTA" } });
+  if (abierta) {
+    return NextResponse.json({ error: "Ya hay una caja abierta. Cerrala antes de abrir otra." }, { status: 400 });
   }
+
+  // La fecha es sólo la etiqueta del día en que se abre el turno.
+  const today = aDiaUTC(hoyEnNegocio());
 
   const caja = await prisma.caja.create({
     data: {
       fecha: today,
-      montoInicial: body.montoInicial ?? 0,
+      montoInicial: Number(body.montoInicial ?? 0),
       estado: "ABIERTA",
     },
   });

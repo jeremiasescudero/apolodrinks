@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero, { aNumero, aTexto } from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { CATEGORIAS, REDONDEOS } from "@/lib/constants";
-import { formatPrecio, stockStatus } from "@/lib/utils";
+import { REDONDEOS } from "@/lib/constants";
+import { formatPrecio, formatPrecioConSigno, ganancia, stockStatus } from "@/lib/utils";
 
 interface Producto {
   id: number;
@@ -24,7 +26,14 @@ interface Componente {
   producto: { id: number; nombre: string; categoria: string; stock: number };
 }
 
-const EMPTY_FORM = { nombre: "", categoria: "Cervezas", precio: 0, costo: 0, stock: 0, stockMinimo: 0, esPromo: false };
+interface Categoria {
+  id: number;
+  nombre: string;
+  orden: number;
+  productos: number;
+}
+
+const EMPTY_FORM = { nombre: "", categoria: "", precio: "", costo: "", stock: "", stockMinimo: "", esPromo: false };
 
 export default function ProductosPage() {
   const toast = useToast();
@@ -37,13 +46,19 @@ export default function ProductosPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [showCategorias, setShowCategorias] = useState(false);
+  const [catNueva, setCatNueva] = useState("");
+  const [catEditando, setCatEditando] = useState<{ id: number; nombre: string } | null>(null);
+  const [catBorrar, setCatBorrar] = useState<Categoria | null>(null);
+
   const [componentes, setComponentes] = useState<Componente[]>([]);
   const [compSearch, setCompSearch] = useState("");
   const [compResults, setCompResults] = useState<Producto[]>([]);
 
   const [showPrecios, setShowPrecios] = useState(false);
   const [precioCat, setPrecioCat] = useState("Cervezas");
-  const [porcentaje, setPorcentaje] = useState(10);
+  const [porcentaje, setPorcentaje] = useState("10");
   const [redondeo, setRedondeo] = useState(0);
   const [precioProducts, setPrecioProducts] = useState<Producto[]>([]);
 
@@ -60,7 +75,15 @@ export default function ProductosPage() {
     setLoading(false);
   }, [catFilter, search]);
 
+  // Sin setState sincrónico acá adentro: el estado se toca recién después del
+  // await, que es lo que evita el aviso de renders en cascada.
+  const fetchCategorias = useCallback(async () => {
+    const res = await fetch("/api/categorias");
+    if (res.ok) setCategorias(await res.json());
+  }, []);
+
   useEffect(() => { fetchProductos() }, [fetchProductos]);
+  useEffect(() => { fetchCategorias() }, [fetchCategorias]);
 
   useEffect(() => {
     if (!compSearch || compSearch.length < 2) { setCompResults([]); return; }
@@ -74,9 +97,35 @@ export default function ProductosPage() {
   }, [compSearch, componentes, editingId]);
 
   const handleSave = async () => {
+    // El formulario guarda texto para que los campos puedan quedar vacíos;
+    // a la API van números.
+    const numeros = {
+      precio: aNumero(form.precio),
+      costo: aNumero(form.costo),
+      stock: aNumero(form.stock),
+      stockMinimo: aNumero(form.stockMinimo),
+    };
+    if (Object.values(numeros).some((n) => Number.isNaN(n))) {
+      toast("Revisá los valores numéricos", "error");
+      return;
+    }
+    if (!form.nombre.trim()) {
+      toast("Falta el nombre del producto", "error");
+      return;
+    }
+    if (!form.categoria) {
+      toast("Elegí una categoría", "error");
+      return;
+    }
+
     const url = editingId ? `/api/productos/${editingId}` : "/api/productos";
     const method = editingId ? "PUT" : "POST";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, ...numeros }) });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error ?? "No se pudo guardar el producto", "error");
+      return;
+    }
     const saved = await res.json();
     const prodId = editingId || saved.id;
 
@@ -97,7 +146,7 @@ export default function ProductosPage() {
   };
 
   const handleEdit = async (p: Producto) => {
-    setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stockMinimo: p.stockMinimo, esPromo: p.esPromo });
+    setForm({ nombre: p.nombre, categoria: p.categoria, precio: aTexto(p.precio), costo: aTexto(p.costo), stock: aTexto(p.stock), stockMinimo: aTexto(p.stockMinimo), esPromo: p.esPromo });
     setEditingId(p.id);
     setComponentes([]);
     setCompSearch("");
@@ -120,8 +169,61 @@ export default function ProductosPage() {
     fetchProductos();
   };
 
+  const crearCategoria = async () => {
+    const nombre = catNueva.trim();
+    if (!nombre) return;
+    const res = await fetch("/api/categorias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo crear la categoría", "error");
+      return;
+    }
+    toast(`Categoría "${nombre}" creada`);
+    setCatNueva("");
+    fetchCategorias();
+  };
+
+  const renombrarCategoria = async () => {
+    if (!catEditando) return;
+    const nombre = catEditando.nombre.trim();
+    if (!nombre) return;
+    const res = await fetch(`/api/categorias/${catEditando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo renombrar", "error");
+      return;
+    }
+    const movidos = data.productosMovidos ?? 0;
+    toast(movidos > 0 ? `Renombrada. ${movidos} producto${movidos === 1 ? "" : "s"} actualizado${movidos === 1 ? "" : "s"}` : "Categoría renombrada");
+    setCatEditando(null);
+    fetchCategorias();
+    fetchProductos();
+  };
+
+  const borrarCategoria = async () => {
+    if (!catBorrar) return;
+    const res = await fetch(`/api/categorias/${catBorrar.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error ?? "No se pudo borrar", "error");
+      setCatBorrar(null);
+      return;
+    }
+    toast(`Categoría "${catBorrar.nombre}" eliminada`);
+    setCatBorrar(null);
+    fetchCategorias();
+  };
+
   const handlePreciosUpdate = async () => {
-    await fetch("/api/precios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria: precioCat, porcentaje, redondeo }) });
+    await fetch("/api/precios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria: precioCat, porcentaje: aNumero(porcentaje), redondeo }) });
     toast(`Precios de ${precioCat} actualizados`);
     setShowPrecios(false);
     fetchProductos();
@@ -133,7 +235,7 @@ export default function ProductosPage() {
   }, [showPrecios, precioCat]);
 
   const previewPrecios = precioProducts.map((p) => {
-    let np = Math.round(p.precio * (1 + porcentaje / 100));
+    let np = Math.round(p.precio * (1 + aNumero(porcentaje) / 100));
     if (redondeo > 0) np = Math.round(np / redondeo) * redondeo;
     return { ...p, nuevoPrecio: np, diff: np - p.precio };
   });
@@ -172,11 +274,18 @@ export default function ProductosPage() {
           <input type="text" placeholder="Buscar producto..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-accent" onClick={() => { setPrecioCat(catFilter !== "Todos" ? catFilter : "Cervezas"); setShowPrecios(true) }}>
+          <button className="btn btn-o" onClick={() => { setCatEditando(null); setCatNueva(""); setShowCategorias(true) }}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <line x1="6" y1="4" x2="14" y2="4" /><line x1="6" y1="8" x2="14" y2="8" /><line x1="6" y1="12" x2="14" y2="12" />
+              <circle cx="2.5" cy="4" r="1" /><circle cx="2.5" cy="8" r="1" /><circle cx="2.5" cy="12" r="1" />
+            </svg>
+            Categorías
+          </button>
+          <button className="btn btn-accent" onClick={() => { setPrecioCat(catFilter !== "Todos" ? catFilter : categorias[0]?.nombre ?? ""); setShowPrecios(true) }}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 2v12M5 5l3-3 3 3M5 11l3 3 3-3" /></svg>
             Actualizar precios
           </button>
-          <button className="btn btn-p" onClick={() => { setForm(EMPTY_FORM); setEditingId(null); setComponentes([]); setShowForm(true) }}>
+          <button className="btn btn-p" onClick={() => { setForm({ ...EMPTY_FORM, categoria: categorias[0]?.nombre ?? "" }); setEditingId(null); setComponentes([]); setShowForm(true) }}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></svg>
             Agregar
           </button>
@@ -185,7 +294,7 @@ export default function ProductosPage() {
 
       {/* Category Filters */}
       <div className="filter-bar" style={{ overflowX: "auto", flexWrap: "nowrap", paddingBottom: 4 }}>
-        {["Todos", ...CATEGORIAS].map((cat) => (
+        {["Todos", ...categorias.map((c) => c.nombre)].map((cat) => (
           <button key={cat} onClick={() => setCatFilter(cat)} className={`fchip ${catFilter === cat ? "active" : ""}`}>
             {cat}
           </button>
@@ -211,7 +320,7 @@ export default function ProductosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={6} columnas={9} />
               ) : productos.length === 0 ? (
                 <tr><td colSpan={9} className="empty-msg">No se encontraron productos</td></tr>
               ) : (
@@ -228,9 +337,16 @@ export default function ProductosPage() {
                       <td className="td-m" data-label="Mínimo">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stockMinimo)}</td>
                       <td className="td-n" data-label="Costo">{p.costo > 0 ? formatPrecio(p.costo) : "—"}</td>
                       <td className="td-n" data-label="Precio">{formatPrecio(p.precio)}</td>
-                      <td className="td-n" data-label="Ganancia" style={{ color: p.costo > 0 ? "var(--color-success)" : undefined }}>
-                        {p.costo > 0 ? formatPrecio(p.precio - p.costo) : "—"}
-                      </td>
+                      <td data-label="Ganancia">{(() => {
+                        const g = ganancia(p.precio, p.costo);
+                        if (!g) return <span className="td-m">—</span>;
+                        return (
+                          <span className={g.pesos < 0 ? "gan-neg" : "gan-pos"}>
+                            {formatPrecioConSigno(g.pesos)}
+                            <small>{g.margen.toFixed(0)}%</small>
+                          </span>
+                        );
+                      })()}</td>
                       <td data-label="Estado">
                         {p.esPromo
                           ? <Badge variant="info">Promo</Badge>
@@ -269,42 +385,51 @@ export default function ProductosPage() {
           <div className="form-group" style={{ maxWidth: 180 }}>
             <label>Categoría</label>
             <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-              {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
             </select>
           </div>
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Costo ($)</label>
-            <input type="number" value={form.costo} onChange={(e) => setForm({ ...form, costo: Number(e.target.value) })} />
+            <label>Precio de venta ($)</label>
+            <InputNumero value={form.precio} onChange={(v) => setForm({ ...form, precio: v })} placeholder="0" maxDigitos={9} />
           </div>
           <div className="form-group">
-            <label>Precio de venta ($)</label>
-            <input type="number" value={form.precio} onChange={(e) => setForm({ ...form, precio: Number(e.target.value) })} />
+            <label>Precio de costo ($)</label>
+            <InputNumero value={form.costo} onChange={(v) => setForm({ ...form, costo: v })} placeholder="0" maxDigitos={9} />
           </div>
-          {form.costo > 0 && form.precio > 0 && (
-            <div className="form-group" style={{ maxWidth: 140 }}>
-              <label>Ganancia</label>
-              <div style={{ padding: "8px 0", fontSize: 14, fontWeight: 600, color: "var(--color-success)" }}>
-                {formatPrecio(form.precio - form.costo)}
-              </div>
-            </div>
-          )}
         </div>
         <div className="form-row">
           {!form.esPromo && (
             <>
               <div className="form-group">
                 <label>Stock</label>
-                <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+                <InputNumero value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} placeholder="0" maxDigitos={6} />
               </div>
               <div className="form-group">
                 <label>Stock mínimo</label>
-                <input type="number" value={form.stockMinimo} onChange={(e) => setForm({ ...form, stockMinimo: Number(e.target.value) })} />
+                <InputNumero value={form.stockMinimo} onChange={(v) => setForm({ ...form, stockMinimo: v })} placeholder="0" maxDigitos={6} />
               </div>
             </>
           )}
         </div>
+
+        {/* La cuenta a la vista mientras tipea: es el dato que pidió el cliente. */}
+        {(() => {
+          const g = ganancia(aNumero(form.precio), aNumero(form.costo));
+          if (!g) {
+            return <p className="gan-hint td-m">Cargá el precio de costo para ver cuánto te deja este producto.</p>;
+          }
+          return (
+            <p className="gan-hint">
+              Ganancia por unidad:{" "}
+              <strong className={g.pesos < 0 ? "gan-neg" : "gan-pos"}>{formatPrecioConSigno(g.pesos)}</strong>
+              {" · "}margen{" "}
+              <strong className={g.pesos < 0 ? "gan-neg" : "gan-pos"}>{g.margen.toFixed(1)}%</strong>
+              {g.pesos < 0 && <span className="gan-neg"> — lo estás vendiendo por debajo del costo</span>}
+            </p>
+          );
+        })()}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0 4px" }}>
           <input
@@ -313,7 +438,7 @@ export default function ProductosPage() {
             checked={form.esPromo}
             onChange={(e) => {
               const checked = e.target.checked;
-              setForm({ ...form, esPromo: checked, stock: checked ? 0 : form.stock, stockMinimo: checked ? 0 : form.stockMinimo });
+              setForm({ ...form, esPromo: checked, stock: checked ? "" : form.stock, stockMinimo: checked ? "" : form.stockMinimo });
               if (!checked) setComponentes([]);
             }}
             style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
@@ -353,16 +478,16 @@ export default function ProductosPage() {
                           alignItems: "center", justifyContent: "center", fontSize: 14, color: "var(--color-text-2)",
                         }}
                       >-</button>
-                      <input
-                        type="number"
-                        value={c.cantidad}
-                        onChange={(e) => updateCompCantidad(c.productoId, Number(e.target.value))}
+                      <InputNumero
+                        value={String(c.cantidad)}
+                        onChange={(v) => updateCompCantidad(c.productoId, Math.max(1, Number(v || 1)))}
+                        maxDigitos={3}
+                        aria-label={`Cantidad de ${c.producto.nombre}`}
                         style={{
                           width: 44, textAlign: "center", padding: "2px 4px", borderRadius: 6,
                           border: "1px solid var(--color-border)", background: "var(--color-surface-1)",
                           fontSize: 13, color: "var(--color-text-1)",
                         }}
-                        min={1}
                       />
                       <button
                         type="button"
@@ -457,6 +582,91 @@ export default function ProductosPage() {
       </Modal>
 
       {/* Modal Actualizar Precios */}
+      {/* Categorías */}
+      <Modal open={showCategorias} onClose={() => { setShowCategorias(false); setCatEditando(null) }} title="Categorías de productos"
+        footer={<button className="btn btn-o" onClick={() => { setShowCategorias(false); setCatEditando(null) }}>Cerrar</button>}
+      >
+        <div className="cat-alta">
+          <input
+            type="text"
+            value={catNueva}
+            onChange={(e) => setCatNueva(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); crearCategoria() } }}
+            placeholder="Nueva categoría (ej: Whisky)"
+            maxLength={40}
+          />
+          <button className="btn btn-p" onClick={crearCategoria} disabled={!catNueva.trim()}>Agregar</button>
+        </div>
+
+        <div className="cat-lista">
+          {categorias.length === 0 ? (
+            <p className="empty-msg">Todavía no hay categorías cargadas.</p>
+          ) : (
+            categorias.map((c) => (
+              <div key={c.id} className="cat-item">
+                {catEditando?.id === c.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={catEditando.nombre}
+                      onChange={(e) => setCatEditando({ id: c.id, nombre: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); renombrarCategoria() }
+                        if (e.key === "Escape") setCatEditando(null);
+                      }}
+                      maxLength={40}
+                      autoFocus
+                    />
+                    <button className="act-btn" onClick={renombrarCategoria} title="Guardar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 8 6.5 11.5 13 4.5" /></svg>
+                    </button>
+                    <button className="act-btn" onClick={() => setCatEditando(null)} title="Cancelar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></svg>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="cat-nombre">{c.nombre}</span>
+                    <span className="cat-uso">{c.productos === 0 ? "sin productos" : `${c.productos} producto${c.productos === 1 ? "" : "s"}`}</span>
+                    <button className="act-btn" onClick={() => setCatEditando({ id: c.id, nombre: c.nombre })} title="Renombrar">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" /></svg>
+                    </button>
+                    <button
+                      className="act-btn del"
+                      onClick={() => setCatBorrar(c)}
+                      disabled={c.productos > 0}
+                      title={c.productos > 0 ? "Tiene productos: primero moverlos a otra categoría" : "Eliminar"}
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" /></svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <p className="cat-nota">
+          Al renombrar una categoría, los productos que la usan se actualizan solos. Una
+          categoría con productos no se puede borrar: primero hay que moverlos.
+        </p>
+      </Modal>
+
+      {/* Confirmar borrado de categoría */}
+      <Modal
+        open={catBorrar !== null}
+        onClose={() => setCatBorrar(null)}
+        title="Eliminar categoría"
+        footer={<>
+          <button className="btn btn-o" onClick={() => setCatBorrar(null)}>Cancelar</button>
+          <button className="btn btn-danger" onClick={borrarCategoria}>Eliminar</button>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: "var(--color-text-2)" }}>
+          ¿Eliminar la categoría <strong>{catBorrar?.nombre}</strong>? No tiene productos asociados.
+        </p>
+      </Modal>
+
       <Modal open={showPrecios} onClose={() => setShowPrecios(false)} title="Actualizar precios por categoría" wide
         footer={<>
           <button className="btn btn-o" onClick={() => setShowPrecios(false)}>Cancelar</button>
@@ -467,12 +677,12 @@ export default function ProductosPage() {
           <div className="form-group">
             <label>Categoría</label>
             <select value={precioCat} onChange={(e) => setPrecioCat(e.target.value)}>
-              {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
             </select>
           </div>
           <div className="form-group" style={{ maxWidth: 120 }}>
             <label>Porcentaje</label>
-            <input type="number" value={porcentaje} onChange={(e) => setPorcentaje(Number(e.target.value))} />
+            <InputNumero value={porcentaje} onChange={setPorcentaje} permiteNegativo placeholder="10" maxDigitos={4} />
           </div>
           <div className="form-group" style={{ maxWidth: 140 }}>
             <label>Redondear a</label>
@@ -503,7 +713,7 @@ export default function ProductosPage() {
                       <td className="td-b">{p.nombre}</td>
                       <td className="price-old">{formatPrecio(p.precio)}</td>
                       <td className="price-new">{formatPrecio(p.nuevoPrecio)}</td>
-                      <td className="td-m">{p.diff >= 0 ? "+" : ""}{formatPrecio(p.diff)}</td>
+                      <td className="td-m">{p.diff > 0 ? "+" : ""}{formatPrecioConSigno(p.diff)}</td>
                     </tr>
                   ))}
                 </tbody>

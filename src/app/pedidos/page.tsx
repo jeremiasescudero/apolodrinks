@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import InputNumero from "@/components/ui/InputNumero";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { ESTADOS_PEDIDO } from "@/lib/constants";
 import { formatPrecio } from "@/lib/utils";
@@ -220,7 +222,7 @@ export default function PedidosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={6} columnas={7} />
               ) : pedidos.length === 0 ? (
                 <tr><td colSpan={7} className="empty-msg">No hay pedidos</td></tr>
               ) : (
@@ -334,11 +336,11 @@ export default function PedidosPage() {
                   <tr key={item.productoId}>
                     <td className="td-b">{item.nombre}</td>
                     <td>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.cantidad}
-                        onChange={(e) => updateQty(item.productoId, Number(e.target.value))}
+                      <InputNumero
+                        value={String(item.cantidad)}
+                        onChange={(v) => updateQty(item.productoId, Math.max(1, Number(v || 1)))}
+                        maxDigitos={4}
+                        aria-label={`Cantidad de ${item.nombre}`}
                         style={{ width: 60, padding: "4px 6px", fontSize: 13, border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontFamily: "inherit", textAlign: "center" }}
                       />
                     </td>

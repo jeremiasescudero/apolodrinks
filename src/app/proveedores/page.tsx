@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
+import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 
 interface Proveedor {
@@ -99,7 +100,7 @@ export default function ProveedoresPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="empty-msg">Cargando...</td></tr>
+                <SkeletonFilas filas={5} columnas={6} />
               ) : proveedores.length === 0 ? (
                 <tr><td colSpan={6} className="empty-msg">No se encontraron proveedores</td></tr>
               ) : (

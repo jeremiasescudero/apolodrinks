@@ -10,11 +10,23 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/// Lista maestra de categorías de productos, editable desde la app.
+/// Producto.categoria guarda el nombre, no el id: renombrar actualiza los
+/// productos en la misma transacción (ver PUT /api/categorias/[id]).
+model Categoria {
+  id        Int      @id @default(autoincrement())
+  nombre    String   @unique
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Producto {
   id          Int      @id @default(autoincrement())
   nombre      String
   categoria   String
   precio      Int
+  /// Lo que cuesta reponerlo. 0 = todavía no se cargó, no "gratis".
   costo       Int      @default(0)
   stock       Int      @default(0)
   stockMinimo Int      @default(0)
@@ -116,17 +128,27 @@ model VentaItem {
   producto       Producto @relation(fields: [productoId], references: [id])
   cantidad       Int
   precioUnitario Int
+  /// Foto del costo al momento de vender. Sin esto, cambiar el costo de un
+  /// producto reescribiría la ganancia de todos los cierres ya hechos.
+  costoUnitario  Int      @default(0)
 }
 
+/// Una caja es un turno de trabajo, no un día del calendario: puede abrirse a
+/// la tarde y cerrarse de madrugada. Por eso `fecha` es sólo la etiqueta del día
+/// en que se abrió y ya no es única — lo que identifica al turno es el rango
+/// entre openedAt y closedAt. El cierre siempre es a mano.
 model Caja {
   id           Int       @id @default(autoincrement())
-  fecha        DateTime  @unique
+  fecha        DateTime
   montoInicial Int       @default(0)
   estado       String    @default("ABIERTA")
   openedAt     DateTime  @default(now())
   closedAt     DateTime?
 
   movimientos CajaMovimiento[]
+
+  @@index([fecha])
+  @@index([estado])
 }
 
 model CajaMovimiento {
