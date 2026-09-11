@@ -15,6 +15,7 @@ model Producto {
   nombre      String
   categoria   String
   precio      Int
+  costo       Int      @default(0)
   stock       Int      @default(0)
   stockMinimo Int      @default(0)
   esPromo     Boolean  @default(false)
@@ -93,13 +94,16 @@ model PedidoItem {
 }
 
 model Venta {
-  id         Int      @id @default(autoincrement())
-  numero     String   @unique
-  clienteId  Int?
-  cliente    Cliente? @relation(fields: [clienteId], references: [id])
-  metodoPago String
-  total      Int      @default(0)
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  numero      String   @unique
+  clienteId   Int?
+  cliente     Cliente? @relation(fields: [clienteId], references: [id])
+  metodoPago  String
+  montoPago1  Int      @default(0)
+  metodoPago2 String?
+  montoPago2  Int      @default(0)
+  total       Int      @default(0)
+  createdAt   DateTime @default(now())
 
   items VentaItem[]
 }

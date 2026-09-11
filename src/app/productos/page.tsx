@@ -12,6 +12,7 @@ interface Producto {
   nombre: string;
   categoria: string;
   precio: number;
+  costo: number;
   stock: number;
   stockMinimo: number;
   esPromo: boolean;
@@ -23,7 +24,7 @@ interface Componente {
   producto: { id: number; nombre: string; categoria: string; stock: number };
 }
 
-const EMPTY_FORM = { nombre: "", categoria: "Cervezas", precio: 0, stock: 0, stockMinimo: 0, esPromo: false };
+const EMPTY_FORM = { nombre: "", categoria: "Cervezas", precio: 0, costo: 0, stock: 0, stockMinimo: 0, esPromo: false };
 
 export default function ProductosPage() {
   const toast = useToast();
@@ -96,7 +97,7 @@ export default function ProductosPage() {
   };
 
   const handleEdit = async (p: Producto) => {
-    setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock, stockMinimo: p.stockMinimo, esPromo: p.esPromo });
+    setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stockMinimo: p.stockMinimo, esPromo: p.esPromo });
     setEditingId(p.id);
     setComponentes([]);
     setCompSearch("");
@@ -201,16 +202,18 @@ export default function ProductosPage() {
                 <th>Categoría</th>
                 <th>Stock</th>
                 <th>Mín</th>
-                <th>Precio unit.</th>
+                <th>Costo</th>
+                <th>Precio</th>
+                <th>Ganancia</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="empty-msg">Cargando...</td></tr>
+                <tr><td colSpan={9} className="empty-msg">Cargando...</td></tr>
               ) : productos.length === 0 ? (
-                <tr><td colSpan={7} className="empty-msg">No se encontraron productos</td></tr>
+                <tr><td colSpan={9} className="empty-msg">No se encontraron productos</td></tr>
               ) : (
                 productos.map((p) => {
                   const status = stockStatus(p.stock, p.stockMinimo);
@@ -223,7 +226,11 @@ export default function ProductosPage() {
                       <td className="td-m" data-label="Categoría">{p.categoria}</td>
                       <td data-label="Stock">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stock)}</td>
                       <td className="td-m" data-label="Mínimo">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stockMinimo)}</td>
+                      <td className="td-n" data-label="Costo">{p.costo > 0 ? formatPrecio(p.costo) : "—"}</td>
                       <td className="td-n" data-label="Precio">{formatPrecio(p.precio)}</td>
+                      <td className="td-n" data-label="Ganancia" style={{ color: p.costo > 0 ? "var(--color-success)" : undefined }}>
+                        {p.costo > 0 ? formatPrecio(p.precio - p.costo) : "—"}
+                      </td>
                       <td data-label="Estado">
                         {p.esPromo
                           ? <Badge variant="info">Promo</Badge>
@@ -268,9 +275,23 @@ export default function ProductosPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Precio ($)</label>
+            <label>Costo ($)</label>
+            <input type="number" value={form.costo} onChange={(e) => setForm({ ...form, costo: Number(e.target.value) })} />
+          </div>
+          <div className="form-group">
+            <label>Precio de venta ($)</label>
             <input type="number" value={form.precio} onChange={(e) => setForm({ ...form, precio: Number(e.target.value) })} />
           </div>
+          {form.costo > 0 && form.precio > 0 && (
+            <div className="form-group" style={{ maxWidth: 140 }}>
+              <label>Ganancia</label>
+              <div style={{ padding: "8px 0", fontSize: 14, fontWeight: 600, color: "var(--color-success)" }}>
+                {formatPrecio(form.precio - form.costo)}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="form-row">
           {!form.esPromo && (
             <>
               <div className="form-group">

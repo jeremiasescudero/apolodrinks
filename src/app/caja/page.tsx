@@ -17,6 +17,9 @@ interface Venta {
   numero: string;
   cliente: { nombre: string } | null;
   metodoPago: string;
+  montoPago1: number;
+  metodoPago2: string | null;
+  montoPago2: number;
   total: number;
   createdAt: string;
   items: VentaItem[];
@@ -104,7 +107,12 @@ export default function CajaPage() {
     const porMetodo: Record<string, number> = {};
     let totalVentas = 0;
     for (const v of vs) {
-      porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.total;
+      if (v.metodoPago2 && v.montoPago2 > 0) {
+        porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.montoPago1;
+        porMetodo[v.metodoPago2] = (porMetodo[v.metodoPago2] || 0) + v.montoPago2;
+      } else {
+        porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.total;
+      }
       totalVentas += v.total;
     }
     return { porMetodo, totalVentas, cantVentas: vs.length };
@@ -279,7 +287,15 @@ export default function CajaPage() {
                     <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
                     <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
                     <td className="td-m" data-label="Items">{v.items.length} prod.</td>
-                    <td data-label="Método"><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td data-label="Método">
+                      <Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge>
+                      {v.metodoPago2 && (
+                        <>
+                          <span style={{ margin: "0 4px", fontSize: 10, color: "var(--color-text-3)" }}>+</span>
+                          <Badge variant={METODO_VARIANT[v.metodoPago2] ?? "muted"}>{v.metodoPago2}</Badge>
+                        </>
+                      )}
+                    </td>
                     <td className="td-n" data-label="Total">{formatPrecio(v.total)}</td>
                   </tr>
                 ))
@@ -436,7 +452,15 @@ export default function CajaPage() {
                     <td className="td-b">{v.numero}</td>
                     <td className="td-m">{formatHora(v.createdAt)}</td>
                     <td className="td-m">{v.cliente?.nombre || "—"}</td>
-                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td>
+                      <Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge>
+                      {v.metodoPago2 && (
+                        <>
+                          <span style={{ margin: "0 4px", fontSize: 10, color: "var(--color-text-3)" }}>+</span>
+                          <Badge variant={METODO_VARIANT[v.metodoPago2] ?? "muted"}>{v.metodoPago2}</Badge>
+                        </>
+                      )}
+                    </td>
                     <td className="td-n">{formatPrecio(v.total)}</td>
                   </tr>
                 ))

@@ -21,6 +21,9 @@ interface Venta {
   clienteId: number | null;
   cliente: { id: number; nombre: string } | null;
   metodoPago: string;
+  montoPago1: number;
+  metodoPago2: string | null;
+  montoPago2: number;
   total: number;
   createdAt: string;
   items: VentaItem[];
@@ -66,6 +69,9 @@ export default function VentasPage() {
   const [showNew, setShowNew] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [metodoPago, setMetodoPago] = useState("Efectivo");
+  const [dividir, setDividir] = useState(false);
+  const [metodoPago2, setMetodoPago2] = useState("Transferencia");
+  const [montoPago2, setMontoPago2] = useState(0);
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -91,6 +97,9 @@ export default function VentasPage() {
   const openNewSale = async () => {
     setCart([]);
     setMetodoPago("Efectivo");
+    setDividir(false);
+    setMetodoPago2("Transferencia");
+    setMontoPago2(0);
     setClienteId(null);
     setProdSearch("");
     const [prodRes, cliRes] = await Promise.all([
@@ -128,14 +137,24 @@ export default function VentasPage() {
 
   const handleCreateVenta = async () => {
     if (cart.length === 0) return;
+    if (dividir && montoPago2 <= 0) { toast("Ingresá el monto del segundo pago"); return; }
+    if (dividir && montoPago2 >= cartTotal) { toast("El segundo pago no puede ser igual o mayor al total"); return; }
+
+    const payload: Record<string, unknown> = {
+      clienteId,
+      metodoPago,
+      items: cart.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitario: i.precio })),
+    };
+    if (dividir) {
+      payload.metodoPago2 = metodoPago2;
+      payload.montoPago1 = cartTotal - montoPago2;
+      payload.montoPago2 = montoPago2;
+    }
+
     await fetch("/api/ventas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clienteId,
-        metodoPago,
-        items: cart.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitario: i.precio })),
-      }),
+      body: JSON.stringify(payload),
     });
     toast("Venta registrada");
     setShowNew(false);
@@ -220,7 +239,15 @@ export default function VentasPage() {
                     <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
                     <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
                     <td className="td-m" data-label="Items">{v.items.length} prod.</td>
-                    <td data-label="Método"><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td data-label="Método">
+                      <Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge>
+                      {v.metodoPago2 && (
+                        <>
+                          <span style={{ margin: "0 4px", fontSize: 10, color: "var(--color-text-3)" }}>+</span>
+                          <Badge variant={METODO_VARIANT[v.metodoPago2] ?? "muted"}>{v.metodoPago2}</Badge>
+                        </>
+                      )}
+                    </td>
                     <td className="td-n" data-label="Total">{formatPrecio(v.total)}</td>
                     <td className="td-act">
                       <button className="act-btn" onClick={() => setDetailVenta(v)} title="Ver detalle">
@@ -256,12 +283,49 @@ export default function VentasPage() {
             </select>
           </div>
           <div className="form-group" style={{ maxWidth: 180 }}>
-            <label>Método de pago</label>
+            <label>{dividir ? "Método 1" : "Método de pago"}</label>
             <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
               {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
         </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 8px" }}>
+          <input
+            type="checkbox"
+            id="dividirPago"
+            checked={dividir}
+            onChange={(e) => { setDividir(e.target.checked); if (!e.target.checked) setMontoPago2(0); }}
+            style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
+          />
+          <label htmlFor="dividirPago" style={{ fontSize: 13, cursor: "pointer", color: "var(--color-text-1)" }}>
+            Dividir en 2 métodos de pago
+          </label>
+        </div>
+
+        {dividir && (
+          <div className="form-row" style={{ padding: 12, background: "var(--color-surface-2)", borderRadius: 8, marginBottom: 8 }}>
+            <div className="form-group" style={{ maxWidth: 180 }}>
+              <label>Método 2</label>
+              <select value={metodoPago2} onChange={(e) => setMetodoPago2(e.target.value)}>
+                {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ maxWidth: 140 }}>
+              <label>Monto método 2 ($)</label>
+              <input type="number" value={montoPago2} onChange={(e) => setMontoPago2(Number(e.target.value))} min={0} max={cartTotal} />
+            </div>
+            {cartTotal > 0 && montoPago2 > 0 && montoPago2 < cartTotal && (
+              <div className="form-group" style={{ maxWidth: 200 }}>
+                <label>Resumen</label>
+                <div style={{ fontSize: 12, color: "var(--color-text-2)", lineHeight: 1.6 }}>
+                  {metodoPago}: {formatPrecio(cartTotal - montoPago2)}<br />
+                  {metodoPago2}: {formatPrecio(montoPago2)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Product Search */}
         <div style={{ marginBottom: 12 }}>
@@ -354,7 +418,14 @@ export default function VentasPage() {
               </div>
               <div className="form-group">
                 <label>Método</label>
-                <p style={{ fontSize: 13 }}>{detailVenta.metodoPago}</p>
+                {detailVenta.metodoPago2 ? (
+                  <div style={{ fontSize: 13 }}>
+                    {detailVenta.metodoPago}: {formatPrecio(detailVenta.montoPago1)}<br />
+                    {detailVenta.metodoPago2}: {formatPrecio(detailVenta.montoPago2)}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13 }}>{detailVenta.metodoPago}</p>
+                )}
               </div>
               <div className="form-group">
                 <label>Fecha</label>

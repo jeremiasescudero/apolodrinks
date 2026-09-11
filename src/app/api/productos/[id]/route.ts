@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       nombre: body.nombre,
       categoria: body.categoria,
       precio: body.precio,
+      costo: body.costo,
       stock: body.stock,
       stockMinimo: body.stockMinimo,
       esPromo: body.esPromo,

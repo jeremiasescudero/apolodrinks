@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (metodo && metodo !== "Todos") {
-    where.metodoPago = metodo;
+    where.OR = [{ metodoPago: metodo }, { metodoPago2: metodo }];
   }
   if (search) {
     where.numero = { contains: search, mode: "insensitive" };
@@ -56,6 +56,9 @@ export async function POST(req: NextRequest) {
   const error = validar(body, {
     clienteId: { tipo: "number" },
     metodoPago: { tipo: "enum", valores: METODOS_PAGO, obligatorio: true },
+    montoPago1: { tipo: "number", min: 0 },
+    metodoPago2: { tipo: "enum", valores: METODOS_PAGO },
+    montoPago2: { tipo: "number", min: 0 },
     items: { tipo: "array", minLen: 1, obligatorio: true },
   });
   if (error) return error;
@@ -67,12 +70,23 @@ export async function POST(req: NextRequest) {
   const items: { productoId: number; cantidad: number; precioUnitario: number }[] = body.items;
   const total = items.reduce((sum, i) => sum + i.cantidad * i.precioUnitario, 0);
 
+  const esDividido = body.metodoPago2 && body.montoPago2 > 0;
+  const montoPago1 = esDividido ? (body.montoPago1 ?? total - body.montoPago2) : total;
+  const montoPago2 = esDividido ? body.montoPago2 : 0;
+
+  if (esDividido && montoPago1 + montoPago2 !== total) {
+    return NextResponse.json({ error: "La suma de los pagos no coincide con el total" }, { status: 400 });
+  }
+
   const venta = await prisma.$transaction(async (tx) => {
     const v = await tx.venta.create({
       data: {
         numero,
         clienteId: body.clienteId || null,
         metodoPago: body.metodoPago,
+        montoPago1,
+        metodoPago2: esDividido ? body.metodoPago2 : null,
+        montoPago2,
         total,
         items: {
           create: items.map((i) => ({
