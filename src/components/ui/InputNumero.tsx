@@ -17,6 +17,7 @@ interface Props {
   value: string;
   onChange: (valor: string) => void;
   id?: string;
+  /** Sin valor por defecto: un "0" de fondo se lee como un monto cargado. */
   placeholder?: string;
   disabled?: boolean;
   maxDigitos?: number;
@@ -31,7 +32,7 @@ export default function InputNumero({
   value,
   onChange,
   id,
-  placeholder = "0",
+  placeholder = "",
   disabled,
   maxDigitos = 12,
   permiteNegativo = false,

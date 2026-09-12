@@ -994,3 +994,43 @@ tfoot tr:hover td { background: var(--color-surface-2) }
   .tbl-cards .sk-fila td { display: block; padding: 5px 0; border: none }
   .tbl-cards .sk-fila td::before { display: none }
 }
+
+/* ===== PAGOS COMBINADOS ===== */
+.pagos-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px }
+.pago-fila { display: flex; align-items: center; gap: 8px }
+.pago-fila select {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.pago-fila input {
+  width: 120px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  outline: none;
+}
+.pago-fila input:focus { border-color: var(--color-primary) }
+.pagos-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.pagos-ok { font-size: 13px; font-weight: 600; color: var(--color-success) }
+.pagos-falta { font-size: 13px; font-weight: 600; color: var(--color-warning) }
+@media (max-width: 768px) {
+  .pago-fila input { width: 100px }
+}

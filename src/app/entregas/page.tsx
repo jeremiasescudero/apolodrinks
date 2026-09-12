@@ -415,7 +415,7 @@ export default function EntregasPage() {
         <div className="form-row">
           <div className="form-group" style={{ maxWidth: 160 }}>
             <label>Monto a cobrar ($)</label>
-            <InputNumero value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} placeholder="0" maxDigitos={9} />
+            <InputNumero value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} maxDigitos={9} />
           </div>
           <div className="form-group" style={{ maxWidth: 160 }}>
             <label>Método de pago</label>

@@ -110,11 +110,29 @@ model Venta {
   numero     String   @unique
   clienteId  Int?
   cliente    Cliente? @relation(fields: [clienteId], references: [id])
+  /// Resumen para mostrar y filtrar rápido: el método usado, o "Mixto" si fue
+  /// más de uno. El detalle con los montos vive en `pagos`, que es lo que suma
+  /// el arqueo de caja.
   metodoPago String
   total      Int      @default(0)
   createdAt  DateTime @default(now())
 
   items VentaItem[]
+  pagos VentaPago[]
+}
+
+/// Una venta puede cobrarse con varios medios a la vez. Sin esto, una venta
+/// mitad efectivo y mitad transferencia caía entera en un solo balde y el
+/// arqueo de efectivo quedaba mal.
+model VentaPago {
+  id         Int    @id @default(autoincrement())
+  ventaId    Int
+  venta      Venta  @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  metodoPago String
+  monto      Int
+
+  @@index([ventaId])
+  @@index([metodoPago])
 }
 
 model VentaItem {

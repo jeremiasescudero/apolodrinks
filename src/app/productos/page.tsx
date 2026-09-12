@@ -390,21 +390,21 @@ export default function ProductosPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Precio de venta ($)</label>
-            <InputNumero value={form.precio} onChange={(v) => setForm({ ...form, precio: v })} placeholder="0" maxDigitos={9} />
+            <InputNumero value={form.precio} onChange={(v) => setForm({ ...form, precio: v })} maxDigitos={9} />
           </div>
           <div className="form-group">
             <label>Precio de costo ($)</label>
-            <InputNumero value={form.costo} onChange={(v) => setForm({ ...form, costo: v })} placeholder="0" maxDigitos={9} />
+            <InputNumero value={form.costo} onChange={(v) => setForm({ ...form, costo: v })} maxDigitos={9} />
           </div>
           {!form.esPromo && (
             <>
               <div className="form-group">
                 <label>Stock</label>
-                <InputNumero value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} placeholder="0" maxDigitos={6} />
+                <InputNumero value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} maxDigitos={6} />
               </div>
               <div className="form-group">
                 <label>Stock mínimo</label>
-                <InputNumero value={form.stockMinimo} onChange={(v) => setForm({ ...form, stockMinimo: v })} placeholder="0" maxDigitos={6} />
+                <InputNumero value={form.stockMinimo} onChange={(v) => setForm({ ...form, stockMinimo: v })} maxDigitos={6} />
               </div>
             </>
           )}
@@ -678,7 +678,7 @@ export default function ProductosPage() {
           </div>
           <div className="form-group" style={{ maxWidth: 120 }}>
             <label>Porcentaje</label>
-            <InputNumero value={porcentaje} onChange={setPorcentaje} permiteNegativo placeholder="10" maxDigitos={4} />
+            <InputNumero value={porcentaje} onChange={setPorcentaje} permiteNegativo maxDigitos={4} />
           </div>
           <div className="form-group" style={{ maxWidth: 140 }}>
             <label>Redondear a</label>

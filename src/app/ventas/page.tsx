@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
-import InputNumero from "@/components/ui/InputNumero";
+import InputNumero, { aNumero } from "@/components/ui/InputNumero";
 import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { METODOS_PAGO } from "@/lib/constants";
@@ -23,6 +23,7 @@ interface Venta {
   clienteId: number | null;
   cliente: { id: number; nombre: string } | null;
   metodoPago: string;
+  pagos?: { metodoPago: string; monto: number }[];
   total: number;
   createdAt: string;
   items: VentaItem[];
@@ -68,6 +69,9 @@ export default function VentasPage() {
   const [showNew, setShowNew] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [metodoPago, setMetodoPago] = useState("Efectivo");
+  // El camino rápido sigue siendo un solo método: la lista aparece recién al dividir.
+  const [dividido, setDividido] = useState(false);
+  const [pagos, setPagos] = useState<{ metodoPago: string; monto: string }[]>([]);
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -92,6 +96,8 @@ export default function VentasPage() {
 
   const openNewSale = async () => {
     setCart([]);
+    setDividido(false);
+    setPagos([]);
     setMetodoPago("Efectivo");
     setClienteId(null);
     setProdSearch("");
@@ -128,19 +134,64 @@ export default function VentasPage() {
 
   const cartTotal = cart.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
 
+  // Lo cobrado hasta ahora y lo que falta, para avisar antes de confirmar.
+  const pagosNumericos = pagos.map((p) => ({ metodoPago: p.metodoPago, monto: aNumero(p.monto) }));
+  const cobrado = pagosNumericos.reduce((s, p) => s + (Number.isNaN(p.monto) ? 0 : p.monto), 0);
+  const falta = cartTotal - cobrado;
+
+  const agregarPago = () => {
+    const usados = new Set(pagos.map((p) => p.metodoPago));
+    const libre = METODOS_PAGO.find((m) => !usados.has(m)) ?? METODOS_PAGO[0];
+    // Se precarga con lo que falta: casi siempre es el monto que va.
+    setPagos([...pagos, { metodoPago: libre, monto: falta > 0 ? String(falta) : "" }]);
+  };
+
+  const activarDividido = (activar: boolean) => {
+    setDividido(activar);
+    // Al dividir se arranca con el método ya elegido cubriendo todo; después se
+    // baja ese monto y el resto queda a mano para el segundo pago.
+    // Si todavía no hay productos, el monto arranca vacío en vez de "0", que
+    // sería inválido y obligaría a borrarlo a mano.
+    setPagos(activar ? [{ metodoPago, monto: cartTotal > 0 ? String(cartTotal) : "" }] : []);
+  };
+
   const handleCreateVenta = async () => {
     if (cart.length === 0) return;
-    await fetch("/api/ventas", {
+
+    if (dividido) {
+      if (pagosNumericos.some((p) => Number.isNaN(p.monto) || p.monto <= 0)) {
+        toast("Todos los pagos tienen que tener un monto mayor a cero", "error");
+        return;
+      }
+      if (new Set(pagos.map((p) => p.metodoPago)).size !== pagos.length) {
+        toast("Hay un método de pago repetido", "error");
+        return;
+      }
+      if (falta !== 0) {
+        toast(falta > 0 ? `Faltan ${formatPrecio(falta)} por cobrar` : `Los pagos superan el total en ${formatPrecio(-falta)}`, "error");
+        return;
+      }
+    }
+
+    const res = await fetch("/api/ventas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clienteId,
         metodoPago,
+        pagos: dividido ? pagosNumericos : [{ metodoPago, monto: cartTotal }],
         items: cart.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitario: i.precio })),
       }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error ?? "No se pudo registrar la venta", "error");
+      return;
+    }
     toast("Venta registrada");
     setShowNew(false);
+    setDividido(false);
+    setPagos([]);
     fetchVentas();
   };
 
@@ -259,11 +310,64 @@ export default function VentasPage() {
           </div>
           <div className="form-group" style={{ maxWidth: 180 }}>
             <label>Método de pago</label>
-            <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
+            <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} disabled={dividido}>
               {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
         </div>
+
+        <label className="check-inline" style={{ marginBottom: dividido ? 12 : 0 }}>
+          <input type="checkbox" checked={dividido} onChange={(e) => activarDividido(e.target.checked)} />
+          Dividir en varios pagos
+        </label>
+
+        {dividido && (
+          <div className="pagos-lista">
+            {pagos.map((p, i) => (
+              <div key={i} className="pago-fila">
+                <select
+                  value={p.metodoPago}
+                  onChange={(e) => setPagos(pagos.map((x, j) => (j === i ? { ...x, metodoPago: e.target.value } : x)))}
+                >
+                  {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <InputNumero
+                  value={p.monto}
+                  onChange={(v) => setPagos(pagos.map((x, j) => (j === i ? { ...x, monto: v } : x)))}
+                  maxDigitos={9}
+                  placeholder="Monto"
+                  aria-label={`Monto en ${p.metodoPago}`}
+                />
+                <button
+                  className="act-btn del"
+                  onClick={() => setPagos(pagos.filter((_, j) => j !== i))}
+                  disabled={pagos.length === 1}
+                  title={pagos.length === 1 ? "Tiene que quedar al menos un pago" : "Quitar"}
+                >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></svg>
+                </button>
+              </div>
+            ))}
+
+            <div className="pagos-pie">
+              <button
+                className="btn btn-o"
+                onClick={agregarPago}
+                disabled={pagos.length >= METODOS_PAGO.length}
+                title={pagos.length >= METODOS_PAGO.length ? "Ya están todos los métodos" : ""}
+              >
+                + Agregar pago
+              </button>
+              <span className={falta === 0 ? "pagos-ok" : "pagos-falta"}>
+                {falta === 0
+                  ? "Cubre el total"
+                  : falta > 0
+                    ? `Falta ${formatPrecio(falta)}`
+                    : `Sobra ${formatPrecio(-falta)}`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Product Search */}
         <div style={{ marginBottom: 12 }}>
@@ -355,7 +459,18 @@ export default function VentasPage() {
               </div>
               <div className="form-group">
                 <label>Método</label>
-                <p style={{ fontSize: 13 }}>{detailVenta.metodoPago}</p>
+                {detailVenta.pagos && detailVenta.pagos.length > 1 ? (
+                  <div style={{ fontSize: 13 }}>
+                    {detailVenta.pagos.map((p, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                        <span>{p.metodoPago}</span>
+                        <strong>{formatPrecio(p.monto)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13 }}>{detailVenta.metodoPago}</p>
+                )}
               </div>
               <div className="form-group">
                 <label>Fecha</label>

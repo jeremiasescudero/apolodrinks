@@ -199,7 +199,7 @@ export default function ClientesPage() {
         <div className="form-row">
           <div className="form-group" style={{ maxWidth: 180 }}>
             <label>Saldo ($)</label>
-            <InputNumero value={form.saldo} onChange={(v) => setForm({ ...form, saldo: v })} permiteNegativo placeholder="0" />
+            <InputNumero value={form.saldo} onChange={(v) => setForm({ ...form, saldo: v })} permiteNegativo />
           </div>
         </div>
       </Modal>

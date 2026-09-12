@@ -15,6 +15,10 @@ interface VentaItem {
   costoUnitario: number;
 }
 
+interface VentaPago {
+  metodoPago: string;
+  monto: number;
+}
 interface Venta {
   id: number;
   numero: string;
@@ -23,6 +27,7 @@ interface Venta {
   total: number;
   createdAt: string;
   items: VentaItem[];
+  pagos: VentaPago[];
 }
 
 interface Caja {
@@ -132,7 +137,14 @@ export default function CajaPage() {
     let unidadesConCosto = 0;
 
     for (const v of vs) {
-      porMetodo[v.metodoPago] = (porMetodo[v.metodoPago] || 0) + v.total;
+      // El desglose suma por pago, no por venta: si alguien paga mitad en
+      // efectivo y mitad por transferencia, cada parte va a su método. De esto
+      // depende el arqueo de efectivo, así que meter la venta entera en un solo
+      // balde dejaba la caja descuadrada.
+      const pagos = v.pagos?.length ? v.pagos : [{ metodoPago: v.metodoPago, monto: v.total }];
+      for (const pago of pagos) {
+        porMetodo[pago.metodoPago] = (porMetodo[pago.metodoPago] || 0) + pago.monto;
+      }
       totalVentas += v.total;
       for (const it of v.items) {
         // costoUnitario en 0 significa que no se sabía el costo al vender.
@@ -219,7 +231,7 @@ export default function CajaPage() {
         >
           <div className="form-group">
             <label htmlFor="monto-inicial">Monto inicial en caja ($)</label>
-            <InputNumero id="monto-inicial" value={montoInicial} onChange={setMontoInicial} placeholder="0" maxDigitos={9} />
+            <InputNumero id="monto-inicial" value={montoInicial} onChange={setMontoInicial} maxDigitos={9} />
             <span style={{ fontSize: 12, color: "var(--color-text-3)", marginTop: 4 }}>
               Efectivo con el que se inicia el día.
             </span>

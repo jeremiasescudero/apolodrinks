@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (metodo && metodo !== "Todos") {
-    where.metodoPago = metodo;
+    // Por la relación, no por el resumen: una venta mitad efectivo y mitad
+    // transferencia tiene que aparecer al filtrar por cualquiera de los dos.
+    where.pagos = { some: { metodoPago: metodo } };
   }
   if (search) {
     where.numero = { contains: search, mode: "insensitive" };
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
     include: {
       cliente: { select: { id: true, nombre: true } },
       items: { include: { producto: { select: { nombre: true } } } },
+      pagos: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -78,8 +81,9 @@ export async function POST(req: NextRequest) {
 
   const error = validar(body, {
     clienteId: { tipo: "number" },
-    metodoPago: { tipo: "enum", valores: METODOS_PAGO, obligatorio: true },
+    metodoPago: { tipo: "enum", valores: METODOS_PAGO },
     items: { tipo: "array", minLen: 1, obligatorio: true },
+    pagos: { tipo: "array", minLen: 1 },
   });
   if (error) return error;
 
@@ -89,6 +93,41 @@ export async function POST(req: NextRequest) {
 
   const items: { productoId: number; cantidad: number; precioUnitario: number }[] = body.items;
   const total = items.reduce((sum, i) => sum + i.cantidad * i.precioUnitario, 0);
+
+  // Una venta puede cobrarse con varios medios. Si viene el formato viejo de un
+  // solo método, se arma un pago único por el total: así siguen andando los
+  // llamados que no conocen los pagos combinados.
+  const pagos: { metodoPago: string; monto: number }[] = Array.isArray(body.pagos) && body.pagos.length > 0
+    ? body.pagos
+    : [{ metodoPago: body.metodoPago, monto: total }];
+
+  for (const pago of pagos) {
+    if (!(METODOS_PAGO as readonly string[]).includes(pago?.metodoPago)) {
+      return NextResponse.json({ error: `Método de pago inválido: ${pago?.metodoPago}` }, { status: 400 });
+    }
+    if (!Number.isInteger(pago.monto) || pago.monto <= 0) {
+      return NextResponse.json({ error: "Cada pago tiene que ser un monto mayor a cero" }, { status: 400 });
+    }
+  }
+
+  // Sin esta comprobación se podría registrar una venta cobrada de menos o de
+  // más, y el arqueo de caja nunca cerraría.
+  const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+  if (sumaPagos !== total) {
+    return NextResponse.json(
+      { error: `Los pagos suman ${sumaPagos} y la venta es de ${total}` },
+      { status: 400 },
+    );
+  }
+
+  // Un método repetido dos veces es casi siempre un error de carga.
+  const metodosUsados = new Set(pagos.map((p) => p.metodoPago));
+  if (metodosUsados.size !== pagos.length) {
+    return NextResponse.json({ error: "Hay un método de pago repetido" }, { status: 400 });
+  }
+
+  // Resumen para la lista y los filtros rápidos; el detalle va en `pagos`.
+  const resumenMetodo = pagos.length === 1 ? pagos[0].metodoPago : "Mixto";
 
   const venta = await prisma.$transaction(async (tx) => {
     // El costo se lee del servidor, nunca de lo que mande el navegador, y se
@@ -104,8 +143,9 @@ export async function POST(req: NextRequest) {
       data: {
         numero,
         clienteId: body.clienteId || null,
-        metodoPago: body.metodoPago,
+        metodoPago: resumenMetodo,
         total,
+        pagos: { create: pagos.map((p) => ({ metodoPago: p.metodoPago, monto: p.monto })) },
         items: {
           create: items.map((i) => ({
             productoId: i.productoId,
@@ -118,6 +158,7 @@ export async function POST(req: NextRequest) {
       include: {
         cliente: { select: { nombre: true } },
         items: { include: { producto: { select: { nombre: true } } } },
+        pagos: true,
       },
     });
 
