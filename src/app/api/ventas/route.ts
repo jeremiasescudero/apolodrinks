@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
   const error = validar(body, {
     clienteId: { tipo: "number" },
     metodoPago: { tipo: "enum", valores: METODOS_PAGO },
+    esMayorista: { tipo: "boolean" },
     items: { tipo: "array", minLen: 1, obligatorio: true },
     pagos: { tipo: "array", minLen: 1 },
   });
@@ -92,6 +93,19 @@ export async function POST(req: NextRequest) {
   const numero = `V-${String(nextNum).padStart(3, "0")}`;
 
   const items: { productoId: number; cantidad: number; precioUnitario: number }[] = body.items;
+
+  // El precio de cada ítem lo puede cargar el usuario a mano (venta mayorista),
+  // así que se valida en el servidor: sin esto una venta podría quedar en cero.
+  for (const item of items) {
+    if (!Number.isInteger(item.productoId) || !Number.isInteger(item.cantidad) || item.cantidad <= 0) {
+      return NextResponse.json({ error: "Cada ítem necesita un producto y una cantidad mayor a cero" }, { status: 400 });
+    }
+    if (!Number.isInteger(item.precioUnitario) || item.precioUnitario <= 0) {
+      return NextResponse.json({ error: "Cada ítem necesita un precio mayor a cero" }, { status: 400 });
+    }
+  }
+
+  const esMayorista = body.esMayorista === true;
   const total = items.reduce((sum, i) => sum + i.cantidad * i.precioUnitario, 0);
 
   // Una venta puede cobrarse con varios medios. Si viene el formato viejo de un
@@ -144,6 +158,7 @@ export async function POST(req: NextRequest) {
         numero,
         clienteId: body.clienteId || null,
         metodoPago: resumenMetodo,
+        esMayorista,
         total,
         pagos: { create: pagos.map((p) => ({ metodoPago: p.metodoPago, monto: p.monto })) },
         items: {

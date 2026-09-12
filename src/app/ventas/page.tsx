@@ -7,7 +7,8 @@ import InputNumero, { aNumero } from "@/components/ui/InputNumero";
 import { SkeletonFilas } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { METODOS_PAGO } from "@/lib/constants";
-import { formatPrecio } from "@/lib/utils";
+import { formatPrecio, formatPrecioConSigno } from "@/lib/utils";
+import { resumenVenta } from "@/lib/venta";
 
 interface VentaItem {
   id: number;
@@ -23,6 +24,7 @@ interface Venta {
   clienteId: number | null;
   cliente: { id: number; nombre: string } | null;
   metodoPago: string;
+  esMayorista?: boolean;
   pagos?: { metodoPago: string; monto: number }[];
   total: number;
   createdAt: string;
@@ -34,6 +36,7 @@ interface Producto {
   nombre: string;
   categoria: string;
   precio: number;
+  costo: number;
   stock: number;
   esPromo: boolean;
 }
@@ -47,6 +50,7 @@ interface CartItem {
   productoId: number;
   nombre: string;
   precio: number;
+  costo: number;
   cantidad: number;
   stock: number;
   esPromo: boolean;
@@ -71,6 +75,8 @@ export default function VentasPage() {
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   // El camino rápido sigue siendo un solo método: la lista aparece recién al dividir.
   const [dividido, setDividido] = useState(false);
+  // Venta mayorista: al activarla, el precio de cada ítem se carga a mano.
+  const [esMayorista, setEsMayorista] = useState(false);
   const [pagos, setPagos] = useState<{ metodoPago: string; monto: string }[]>([]);
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -98,6 +104,7 @@ export default function VentasPage() {
     setCart([]);
     setDividido(false);
     setPagos([]);
+    setEsMayorista(false);
     setMetodoPago("Efectivo");
     setClienteId(null);
     setProdSearch("");
@@ -116,7 +123,7 @@ export default function VentasPage() {
       if (existing) {
         return prev.map((i) => i.productoId === p.id ? { ...i, cantidad: i.cantidad + 1 } : i);
       }
-      return [...prev, { productoId: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, stock: p.stock, esPromo: p.esPromo }];
+      return [...prev, { productoId: p.id, nombre: p.nombre, precio: p.precio, costo: p.costo, cantidad: 1, stock: p.stock, esPromo: p.esPromo }];
     });
   };
 
@@ -132,7 +139,13 @@ export default function VentasPage() {
     setCart((prev) => prev.filter((i) => i.productoId !== productoId));
   };
 
+  const updatePrecio = (productoId: number, precio: number) => {
+    setCart((prev) => prev.map((i) => i.productoId === productoId ? { ...i, precio } : i));
+  };
+
   const cartTotal = cart.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
+  // Costo, venta y ganancia recalculados desde el precio actual del carrito.
+  const resumen = resumenVenta(cart.map((i) => ({ precioUnitario: i.precio, costoUnitario: i.costo, cantidad: i.cantidad })));
 
   // Lo cobrado hasta ahora y lo que falta, para avisar antes de confirmar.
   const pagosNumericos = pagos.map((p) => ({ metodoPago: p.metodoPago, monto: aNumero(p.monto) }));
@@ -180,6 +193,7 @@ export default function VentasPage() {
         clienteId,
         metodoPago,
         pagos: dividido ? pagosNumericos : [{ metodoPago, monto: cartTotal }],
+        esMayorista,
         items: cart.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitario: i.precio })),
       }),
     });
@@ -268,7 +282,10 @@ export default function VentasPage() {
               ) : (
                 ventas.map((v) => (
                   <tr key={v.id}>
-                    <td className="celda-titulo td-b">{v.numero}</td>
+                    <td className="celda-titulo td-b">
+                      {v.numero}
+                      {v.esMayorista && <Badge variant="info" style={{ marginLeft: 8, fontSize: 10 }}>Mayorista</Badge>}
+                    </td>
                     <td className="td-m" data-label="Fecha">{formatFecha(v.createdAt)}</td>
                     <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
                     <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
@@ -377,6 +394,11 @@ export default function VentasPage() {
           </div>
         )}
 
+        <label className="check-inline" style={{ marginBottom: 12 }}>
+          <input type="checkbox" checked={esMayorista} onChange={(e) => setEsMayorista(e.target.checked)} />
+          Es venta mayorista (cargar el precio a mano)
+        </label>
+
         {/* Product Search */}
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-2)", display: "block", marginBottom: 4 }}>Agregar productos</label>
@@ -439,7 +461,19 @@ export default function VentasPage() {
                         style={{ width: 60, padding: "4px 6px", fontSize: 13, border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontFamily: "inherit", textAlign: "center" }}
                       />
                     </td>
-                    <td className="td-m">{formatPrecio(item.precio)}</td>
+                    <td className="td-m">
+                      {esMayorista ? (
+                        <InputNumero
+                          value={String(item.precio)}
+                          onChange={(v) => updatePrecio(item.productoId, Number(v || 0))}
+                          maxDigitos={9}
+                          aria-label={`Precio de ${item.nombre}`}
+                          style={{ width: 90, padding: "4px 6px", fontSize: 13, border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontFamily: "inherit", textAlign: "right" }}
+                        />
+                      ) : (
+                        formatPrecio(item.precio)
+                      )}
+                    </td>
                     <td className="td-n">{formatPrecio(item.precio * item.cantidad)}</td>
                     <td>
                       <button className="act-btn del" onClick={() => removeFromCart(item.productoId)} title="Quitar">
@@ -450,6 +484,31 @@ export default function VentasPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* En una venta mayorista se ve la cuenta: costo, venta y ganancia con
+            el precio cargado a mano. El costo es el real de cada producto. */}
+        {esMayorista && cart.length > 0 && (
+          <div className="resumen-mayorista">
+            <div>
+              <span className="rm-label">Costo</span>
+              <span className="rm-valor">{formatPrecio(resumen.totalCosto)}</span>
+            </div>
+            <div>
+              <span className="rm-label">Venta</span>
+              <span className="rm-valor">{formatPrecio(resumen.totalVenta)}</span>
+            </div>
+            <div>
+              <span className="rm-label">Ganancia</span>
+              <span className={`rm-valor ${resumen.ganancia < 0 ? "gan-neg" : "gan-pos"}`}>
+                {formatPrecioConSigno(resumen.ganancia)}
+                {resumen.margen !== null && <small> · {resumen.margen.toFixed(0)}%</small>}
+              </span>
+            </div>
+            {resumen.unidadesSinCosto > 0 && (
+              <p className="rm-nota">{resumen.unidadesSinCosto} u. sin costo cargado quedan fuera de la ganancia.</p>
+            )}
           </div>
         )}
       </Modal>
@@ -463,7 +522,10 @@ export default function VentasPage() {
             <div className="form-row" style={{ marginBottom: 12 }}>
               <div className="form-group">
                 <label>Cliente</label>
-                <p style={{ fontSize: 13 }}>{detailVenta.cliente?.nombre || "Sin cliente"}</p>
+                <p style={{ fontSize: 13 }}>
+                  {detailVenta.cliente?.nombre || "Sin cliente"}
+                  {detailVenta.esMayorista && <Badge variant="info" style={{ marginLeft: 8, fontSize: 10 }}>Mayorista</Badge>}
+                </p>
               </div>
               <div className="form-group">
                 <label>Método</label>

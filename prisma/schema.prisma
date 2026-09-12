@@ -114,6 +114,9 @@ model Venta {
   /// más de uno. El detalle con los montos vive en `pagos`, que es lo que suma
   /// el arqueo de caja.
   metodoPago String
+  /// En una venta mayorista el precio de cada ítem lo carga el usuario a mano.
+  /// El costo sigue siendo el real del producto, así la ganancia es la verdadera.
+  esMayorista Boolean @default(false)
   total      Int      @default(0)
   createdAt  DateTime @default(now())
 

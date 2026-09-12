@@ -1034,3 +1034,20 @@ tfoot tr:hover td { background: var(--color-surface-2) }
 @media (max-width: 768px) {
   .pago-fila input { width: 100px }
 }
+
+/* ===== RESUMEN VENTA MAYORISTA ===== */
+.resumen-mayorista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius);
+}
+.resumen-mayorista > div { display: flex; flex-direction: column }
+.rm-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3) }
+.rm-valor { font-size: 15px; font-weight: 700 }
+.rm-valor small { font-size: 11px; font-weight: 500; opacity: .8 }
+.rm-nota { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--color-text-3) }
