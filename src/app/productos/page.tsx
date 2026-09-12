@@ -311,7 +311,8 @@ export default function ProductosPage() {
                 <th>Categoría</th>
                 <th>Stock</th>
                 <th>Mín</th>
-                <th>Precio unit.</th>
+                <th>Costo</th>
+                <th>Precio</th>
                 <th>Ganancia</th>
                 <th>Estado</th>
                 <th></th>
@@ -319,9 +320,9 @@ export default function ProductosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <SkeletonFilas filas={6} columnas={8} />
+                <SkeletonFilas filas={6} columnas={9} />
               ) : productos.length === 0 ? (
-                <tr><td colSpan={8} className="empty-msg">No se encontraron productos</td></tr>
+                <tr><td colSpan={9} className="empty-msg">No se encontraron productos</td></tr>
               ) : (
                 productos.map((p) => {
                   const status = stockStatus(p.stock, p.stockMinimo);
@@ -334,6 +335,7 @@ export default function ProductosPage() {
                       <td className="td-m" data-label="Categoría">{p.categoria}</td>
                       <td data-label="Stock">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stock)}</td>
                       <td className="td-m" data-label="Mínimo">{p.esPromo ? "—" : (p.stockMinimo === 0 ? "—" : p.stockMinimo)}</td>
+                      <td className="td-n" data-label="Costo">{p.costo > 0 ? formatPrecio(p.costo) : "—"}</td>
                       <td className="td-n" data-label="Precio">{formatPrecio(p.precio)}</td>
                       <td data-label="Ganancia">{(() => {
                         const g = ganancia(p.precio, p.costo);
@@ -396,6 +398,8 @@ export default function ProductosPage() {
             <label>Precio de costo ($)</label>
             <InputNumero value={form.costo} onChange={(v) => setForm({ ...form, costo: v })} maxDigitos={9} />
           </div>
+        </div>
+        <div className="form-row">
           {!form.esPromo && (
             <>
               <div className="form-group">

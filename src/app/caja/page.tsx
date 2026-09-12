@@ -362,7 +362,15 @@ export default function CajaPage() {
                     <td className="td-m" data-label="Hora">{formatHora(v.createdAt)}</td>
                     <td className="td-m" data-label="Cliente">{v.cliente?.nombre || "—"}</td>
                     <td className="td-m" data-label="Items">{v.items.length} prod.</td>
-                    <td data-label="Método"><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td data-label="Método">
+                      {/* Un badge por cada medio de pago: una venta mixta muestra los dos. */}
+                      {(v.pagos?.length ? v.pagos : [{ metodoPago: v.metodoPago, monto: v.total }]).map((pago, i) => (
+                        <span key={i}>
+                          {i > 0 && <span style={{ margin: "0 4px", fontSize: 10, color: "var(--color-text-3)" }}>+</span>}
+                          <Badge variant={METODO_VARIANT[pago.metodoPago] ?? "muted"}>{pago.metodoPago}</Badge>
+                        </span>
+                      ))}
+                    </td>
                     <td className="td-n" data-label="Total">{formatPrecio(v.total)}</td>
                   </tr>
                 ))
@@ -538,7 +546,15 @@ export default function CajaPage() {
                     <td className="td-b">{v.numero}</td>
                     <td className="td-m">{formatHora(v.createdAt)}</td>
                     <td className="td-m">{v.cliente?.nombre || "—"}</td>
-                    <td><Badge variant={METODO_VARIANT[v.metodoPago] ?? "muted"}>{v.metodoPago}</Badge></td>
+                    <td>
+                      {/* Un badge por cada medio de pago: una venta mixta muestra los dos. */}
+                      {(v.pagos?.length ? v.pagos : [{ metodoPago: v.metodoPago, monto: v.total }]).map((pago, i) => (
+                        <span key={i}>
+                          {i > 0 && <span style={{ margin: "0 4px", fontSize: 10, color: "var(--color-text-3)" }}>+</span>}
+                          <Badge variant={METODO_VARIANT[pago.metodoPago] ?? "muted"}>{pago.metodoPago}</Badge>
+                        </span>
+                      ))}
+                    </td>
                     <td className="td-n">{formatPrecio(v.total)}</td>
                   </tr>
                 ))
